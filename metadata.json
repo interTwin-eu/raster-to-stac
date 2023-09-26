@@ -1,0 +1,463 @@
+{
+    "type": "Feature",
+    "stac_version": "1.0.0",
+    "id": "20220630000000",
+    "properties": {
+        "datetime": "2023-09-13T14:36:54.034342Z"
+    },
+    "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [
+                    11.27898298346751,
+                    46.459559702076476
+                ],
+                [
+                    11.403439080392618,
+                    46.459559702076476
+                ],
+                [
+                    11.403439080392618,
+                    46.52544662500779
+                ],
+                [
+                    11.27898298346751,
+                    46.52544662500779
+                ],
+                [
+                    11.27898298346751,
+                    46.459559702076476
+                ]
+            ]
+        ]
+    },
+    "links": [],
+    "assets": {
+        "B04": {
+            "href": "results/20230913143646400/20220602000000/B04.tif",
+            "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+            "proj:epsg": 32632,
+            "proj:geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            674990.0,
+                            5147910.0
+                        ],
+                        [
+                            684340.0,
+                            5147910.0
+                        ],
+                        [
+                            684340.0,
+                            5154960.0
+                        ],
+                        [
+                            674990.0,
+                            5154960.0
+                        ],
+                        [
+                            674990.0,
+                            5147910.0
+                        ]
+                    ]
+                ]
+            },
+            "proj:bbox": [
+                674990.0,
+                5147910.0,
+                684340.0,
+                5154960.0
+            ],
+            "proj:shape": [
+                705,
+                935
+            ],
+            "proj:transform": [
+                10.0,
+                0.0,
+                674990.0,
+                0.0,
+                -10.0,
+                5154960.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "proj:projjson": {
+                "$schema": "https://proj.org/schemas/v0.4/projjson.schema.json",
+                "type": "ProjectedCRS",
+                "name": "WGS 84 / UTM zone 32N",
+                "base_crs": {
+                    "name": "WGS 84",
+                    "datum": {
+                        "type": "GeodeticReferenceFrame",
+                        "name": "World Geodetic System 1984",
+                        "ellipsoid": {
+                            "name": "WGS 84",
+                            "semi_major_axis": 6378137,
+                            "inverse_flattening": 298.257223563
+                        }
+                    },
+                    "coordinate_system": {
+                        "subtype": "ellipsoidal",
+                        "axis": [
+                            {
+                                "name": "Geodetic latitude",
+                                "abbreviation": "Lat",
+                                "direction": "north",
+                                "unit": "degree"
+                            },
+                            {
+                                "name": "Geodetic longitude",
+                                "abbreviation": "Lon",
+                                "direction": "east",
+                                "unit": "degree"
+                            }
+                        ]
+                    },
+                    "id": {
+                        "authority": "EPSG",
+                        "code": 4326
+                    }
+                },
+                "conversion": {
+                    "name": "UTM zone 32N",
+                    "method": {
+                        "name": "Transverse Mercator",
+                        "id": {
+                            "authority": "EPSG",
+                            "code": 9807
+                        }
+                    },
+                    "parameters": [
+                        {
+                            "name": "Latitude of natural origin",
+                            "value": 0,
+                            "unit": "degree",
+                            "id": {
+                                "authority": "EPSG",
+                                "code": 8801
+                            }
+                        },
+                        {
+                            "name": "Longitude of natural origin",
+                            "value": 9,
+                            "unit": "degree",
+                            "id": {
+                                "authority": "EPSG",
+                                "code": 8802
+                            }
+                        },
+                        {
+                            "name": "Scale factor at natural origin",
+                            "value": 0.9996,
+                            "unit": "unity",
+                            "id": {
+                                "authority": "EPSG",
+                                "code": 8805
+                            }
+                        },
+                        {
+                            "name": "False easting",
+                            "value": 500000,
+                            "unit": "metre",
+                            "id": {
+                                "authority": "EPSG",
+                                "code": 8806
+                            }
+                        },
+                        {
+                            "name": "False northing",
+                            "value": 0,
+                            "unit": "metre",
+                            "id": {
+                                "authority": "EPSG",
+                                "code": 8807
+                            }
+                        }
+                    ]
+                },
+                "coordinate_system": {
+                    "subtype": "Cartesian",
+                    "axis": [
+                        {
+                            "name": "Easting",
+                            "abbreviation": "",
+                            "direction": "east",
+                            "unit": "metre"
+                        },
+                        {
+                            "name": "Northing",
+                            "abbreviation": "",
+                            "direction": "north",
+                            "unit": "metre"
+                        }
+                    ]
+                },
+                "id": {
+                    "authority": "EPSG",
+                    "code": 32632
+                }
+            },
+            "raster:bands": [
+                {
+                    "data_type": "float32",
+                    "scale": 1.0,
+                    "offset": 0.0,
+                    "sampling": "area",
+                    "statistics": {
+                        "mean": 1213638304071680.0,
+                        "minimum": 1.0,
+                        "maximum": 1.0000000200408773e+20,
+                        "stddev": 0.0,
+                        "valid_percent": 0.0001517047824932681
+                    },
+                    "histogram": {
+                        "count": 11,
+                        "min": 1.0,
+                        "max": 1.0000000200408773e+20,
+                        "buckets": [
+                            659167,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            8
+                        ]
+                    }
+                }
+            ],
+            "eo:bands": [
+                {
+                    "name": "b1",
+                    "description": "gray"
+                }
+            ]
+        },
+        "B03": {
+            "href": "results/20230913143646400/20220602000000/B03.tif",
+            "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+            "proj:epsg": 32632,
+            "proj:geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            674990.0,
+                            5147910.0
+                        ],
+                        [
+                            684340.0,
+                            5147910.0
+                        ],
+                        [
+                            684340.0,
+                            5154960.0
+                        ],
+                        [
+                            674990.0,
+                            5154960.0
+                        ],
+                        [
+                            674990.0,
+                            5147910.0
+                        ]
+                    ]
+                ]
+            },
+            "proj:bbox": [
+                674990.0,
+                5147910.0,
+                684340.0,
+                5154960.0
+            ],
+            "proj:shape": [
+                705,
+                935
+            ],
+            "proj:transform": [
+                10.0,
+                0.0,
+                674990.0,
+                0.0,
+                -10.0,
+                5154960.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "proj:projjson": {
+                "$schema": "https://proj.org/schemas/v0.4/projjson.schema.json",
+                "type": "ProjectedCRS",
+                "name": "WGS 84 / UTM zone 32N",
+                "base_crs": {
+                    "name": "WGS 84",
+                    "datum": {
+                        "type": "GeodeticReferenceFrame",
+                        "name": "World Geodetic System 1984",
+                        "ellipsoid": {
+                            "name": "WGS 84",
+                            "semi_major_axis": 6378137,
+                            "inverse_flattening": 298.257223563
+                        }
+                    },
+                    "coordinate_system": {
+                        "subtype": "ellipsoidal",
+                        "axis": [
+                            {
+                                "name": "Geodetic latitude",
+                                "abbreviation": "Lat",
+                                "direction": "north",
+                                "unit": "degree"
+                            },
+                            {
+                                "name": "Geodetic longitude",
+                                "abbreviation": "Lon",
+                                "direction": "east",
+                                "unit": "degree"
+                            }
+                        ]
+                    },
+                    "id": {
+                        "authority": "EPSG",
+                        "code": 4326
+                    }
+                },
+                "conversion": {
+                    "name": "UTM zone 32N",
+                    "method": {
+                        "name": "Transverse Mercator",
+                        "id": {
+                            "authority": "EPSG",
+                            "code": 9807
+                        }
+                    },
+                    "parameters": [
+                        {
+                            "name": "Latitude of natural origin",
+                            "value": 0,
+                            "unit": "degree",
+                            "id": {
+                                "authority": "EPSG",
+                                "code": 8801
+                            }
+                        },
+                        {
+                            "name": "Longitude of natural origin",
+                            "value": 9,
+                            "unit": "degree",
+                            "id": {
+                                "authority": "EPSG",
+                                "code": 8802
+                            }
+                        },
+                        {
+                            "name": "Scale factor at natural origin",
+                            "value": 0.9996,
+                            "unit": "unity",
+                            "id": {
+                                "authority": "EPSG",
+                                "code": 8805
+                            }
+                        },
+                        {
+                            "name": "False easting",
+                            "value": 500000,
+                            "unit": "metre",
+                            "id": {
+                                "authority": "EPSG",
+                                "code": 8806
+                            }
+                        },
+                        {
+                            "name": "False northing",
+                            "value": 0,
+                            "unit": "metre",
+                            "id": {
+                                "authority": "EPSG",
+                                "code": 8807
+                            }
+                        }
+                    ]
+                },
+                "coordinate_system": {
+                    "subtype": "Cartesian",
+                    "axis": [
+                        {
+                            "name": "Easting",
+                            "abbreviation": "",
+                            "direction": "east",
+                            "unit": "metre"
+                        },
+                        {
+                            "name": "Northing",
+                            "abbreviation": "",
+                            "direction": "north",
+                            "unit": "metre"
+                        }
+                    ]
+                },
+                "id": {
+                    "authority": "EPSG",
+                    "code": 32632
+                }
+            },
+            "raster:bands": [
+                {
+                    "data_type": "float32",
+                    "scale": 1.0,
+                    "offset": 0.0,
+                    "sampling": "area",
+                    "statistics": {
+                        "mean": 2315.899169921875,
+                        "minimum": 14.0,
+                        "maximum": 13984.0,
+                        "stddev": 2397.073974609375,
+                        "valid_percent": 0.0001517047824932681
+                    },
+                    "histogram": {
+                        "count": 11,
+                        "min": 14.0,
+                        "max": 13984.0,
+                        "buckets": [
+                            347033,
+                            147876,
+                            42168,
+                            36206,
+                            33912,
+                            29878,
+                            15092,
+                            5546,
+                            1463,
+                            1
+                        ]
+                    }
+                }
+            ],
+            "eo:bands": [
+                {
+                    "name": "b1",
+                    "description": "gray"
+                }
+            ]
+        }
+    },
+    "bbox": [
+        11.27898298346751,
+        46.459559702076476,
+        11.403439080392618,
+        46.52544662500779
+    ],
+    "stac_extensions": [
+        "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+        "https://stac-extensions.github.io/raster/v1.1.0/schema.json",
+        "https://stac-extensions.github.io/eo/v1.1.0/schema.json"
+    ]
+}
