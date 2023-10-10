@@ -24,12 +24,13 @@ import json
 import xarray as xr
 from typing import Callable, Optional, Union
 
+
 class Raster2STAC():
     
     def __init__(self,data: xr.DataArray,
-                 t_dim: Optional[str] = "time",
-                 b_dim: Optional[str] = "band",
-                 collection: Optional[str] = None,
+                 t_dim: Optional[str] = "t",
+                 b_dim: Optional[str] = "bands",
+                 collection_id: Optional[str] = None,         #collection id as string (same of collection and items)
                  collection_url: Optional[str] = None,
                  output_folder: Optional[str] = None,
                 ):
@@ -50,7 +51,7 @@ class Raster2STAC():
         self.input_datetime = None
 
         # name of collection the item belongs to
-        self.collection = collection
+        self.collection_id = collection_id
         self.collection_url = collection_url
 
         self.extensions = [
@@ -69,10 +70,21 @@ class Raster2STAC():
         if not os.path.exists(self.output_folder):
             os.mkdir(self.output_folder)
 
+        self.stac_collection = None
+
     def set_media_type(self,media_type: pystac.MediaType):
         self.media_type = media_type
 
     def generate_stac(self):
+        #FIXME: substitute with real data
+        s_ext = pystac.SpatialExtent([[ -180, -90, 180, 90]])
+        t_ext = pystac.TemporalExtent([[ str_to_datetime("2000-03-04T00:00:00Z"), str_to_datetime("2000-04-04T00:00:00Z") ]])
+
+        self.stac_collection = pystac.collection.Collection(id=self.collection_id, description="desc", 
+                                                  extent = pystac.Extent(spatial=s_ext, temporal= t_ext), 
+                                                  extra_fields = {"stac_version": "1.0.0"})      
+        
+ 
         # Get the time dimension values
         time_values = self.data[self.t_dim].values
 
@@ -90,15 +102,16 @@ class Raster2STAC():
                 os.makedirs(time_slice_dir)
 
             # Get the band name (you may need to adjust this part based on your data)
+            ### print(self.data)
             bands = self.data[self.b_dim].values
 
-            print(f"\nts: {t}")
+            ### print(f"\nts: {t}")
             
             pystac_assets = []
 
             # Cycling all bands
             for band in bands:
-                print(f"b: {band}")
+                ### print(f"b: {band}")
 
                 # Define the GeoTIFF file path for this time slice and band
                 path = os.path.join(time_slice_dir, f"{band}_{time_str}.tif")
@@ -149,37 +162,49 @@ class Raster2STAC():
             minx, miny, maxx, maxy = zip(*bboxes)
             bbox = [min(minx), min(miny), max(maxx), max(maxy)]
 
+            metadata_item_path = f"{time_slice_dir}/metadata.json"
+
             # item
             item = pystac.Item(
                 id=time_str,
                 geometry=bbox_to_geom(bbox),
                 bbox=bbox,
-                collection=self.collection,
+                collection=None,#self.collection_id,
                 stac_extensions=self.extensions,
                 datetime=str_to_datetime(str(t)),
                 properties=self.properties,
+                href=metadata_item_path
             )
             for key, asset in pystac_assets:
                 item.add_asset(key=key, asset=asset)
 
-            item.validate()
+            
             
             json_str = (json.dumps(item.to_dict(), indent=4))
-
             #printing metadata.json test output file
-            with open(f"{time_slice_dir}/metadata.json", "w+") as metadata:
-                metadata.write(json_str) 
+            with open(metadata_item_path, "w+") as metadata:
+                metadata.write(json_str)
+            item.validate()
 
-            #data.rio.to_raster()#                 exit(1)
+            
 
-#                 # if we add a collection we MUST add a link
-#                 if collection:
-#                     item.add_link(
-#                         pystac.Link(
-#                             pystac.RelType.COLLECTION,
-#                             collection_url or collection,
-#                             media_type=pystac.MediaType.JSON,
-#                         )
-#                     )
+            #if we add a collection we MUST add a link
+            if self.collection_id:
+                item.add_link(
+                    pystac.Link(
+                        pystac.RelType.COLLECTION,
+                        self.collection_url or self.collection_id,
+                        media_type=pystac.MediaType.JSON,
+                    )
+                )
 
+            self.stac_collection.add_item(item)
+            #fc.append(item.to_dict())
+    
+        json_str = (json.dumps(self.stac_collection.to_dict(), indent=4))
+        
+        #printing metadata.json test output file
+        with open(f"metadata.json", "w+") as metadata:
+            metadata.write(json_str)
 
+      
