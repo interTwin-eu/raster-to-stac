@@ -23,8 +23,12 @@ from rio_stac.stac import (
 )
 import pandas as pd
 import json
-
+import sys
+current = os.path.dirname(os.path.realpath(__file__))
+parent = os.path.dirname(current)
+sys.path.append(parent)
 from raster2stac import raster2stac as r2slib
+
 
 local_data_folders = [
     "/home/lmercurio/dev/test-rio-stac/openeo-localprocessing-data/sample_netcdf",
@@ -36,6 +40,6 @@ s2_datacube = local_conn.load_collection(local_collection)
 exec_results = s2_datacube.execute()
 
 
-r2s = r2slib.Raster2STAC(exec_results, output_folder='./results/', collection_id="test-id")
+r2s = r2slib.Raster2STAC(exec_results, output_folder='./results/', collection_id="test-id", verbose=True)
 
 r2s.generate_stac()

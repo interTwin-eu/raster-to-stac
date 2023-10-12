@@ -33,6 +33,7 @@ class Raster2STAC():
                  collection_id: Optional[str] = None,         #collection id as string (same of collection and items)
                  collection_url: Optional[str] = None,
                  output_folder: Optional[str] = None,
+                 verbose=False
                 ):
                 
         self.data = data
@@ -72,23 +73,36 @@ class Raster2STAC():
 
         self.stac_collection = None
 
+        self.verbose = verbose
+
     def set_media_type(self,media_type: pystac.MediaType):
         self.media_type = media_type
 
     def generate_stac(self):
-        #FIXME: substitute with real data
-        s_ext = pystac.SpatialExtent([[ -180, -90, 180, 90]])
-        t_ext = pystac.TemporalExtent([[ str_to_datetime("2000-03-04T00:00:00Z"), str_to_datetime("2000-04-04T00:00:00Z") ]])
 
-        self.stac_collection = pystac.collection.Collection(id=self.collection_id, description="desc", 
-                                                  extent = pystac.Extent(spatial=s_ext, temporal= t_ext), 
+        spatial_extents = []
+        temporal_extents = []
+
+        """self.stac_collection = pystac.collection.Collection(id=self.collection_id, description="desc", 
+                                                  extent = None,
+                                                  #extent = pystac.Extent(spatial=s_ext, temporal= t_ext), 
                                                   extra_fields = {"stac_version": "1.0.0"})      
-        
- 
+        """
+
+        item_list = []  # Create a list to store the items
+
         # Get the time dimension values
         time_values = self.data[self.t_dim].values
+        
+        #Cycling all timestamps
+
+        if self.verbose:
+            print("Cycling all timestamps")
 
         for t in time_values:
+            if self.verbose:
+                print(f"\nts: {t}")
+
             # Convert the time value to a datetime object
             timestamp = pd.Timestamp(t)
 
@@ -102,16 +116,17 @@ class Raster2STAC():
                 os.makedirs(time_slice_dir)
 
             # Get the band name (you may need to adjust this part based on your data)
-            ### print(self.data)
             bands = self.data[self.b_dim].values
-
-            ### print(f"\nts: {t}")
             
             pystac_assets = []
 
             # Cycling all bands
+            if self.verbose:
+                print("Cycling all bands")
+
             for band in bands:
-                ### print(f"b: {band}")
+                if self.verbose:
+                    print(f"b: {band}")
 
                 # Define the GeoTIFF file path for this time slice and band
                 path = os.path.join(time_slice_dir, f"{band}_{time_str}.tif")
@@ -147,7 +162,7 @@ class Raster2STAC():
                         (
                             band, 
                             pystac.Asset(
-                                href=path,
+                                href=path, 
                                 media_type=self.media_type,
                                 extra_fields={
                                     **proj_info,
@@ -158,11 +173,10 @@ class Raster2STAC():
                             ),
                         )
                     )
+            
 
             minx, miny, maxx, maxy = zip(*bboxes)
             bbox = [min(minx), min(miny), max(maxx), max(maxy)]
-
-            metadata_item_path = f"{time_slice_dir}/metadata.json"
 
             # item
             item = pystac.Item(
@@ -173,19 +187,31 @@ class Raster2STAC():
                 stac_extensions=self.extensions,
                 datetime=str_to_datetime(str(t)),
                 properties=self.properties,
-                href=metadata_item_path
+                #href=metadata_item_path # Commented on Oct 12
             )
+            # Calculate the item's spatial extent and add it to the list
+            item_bbox = item.bbox
+            spatial_extents.append(item_bbox)
+
+            # Calculate the item's temporal extent and add it to the list
+            item_datetime = item.datetime
+            temporal_extents.append([item_datetime, item_datetime])
+
+            # TODO: produce single metatada for all items if specified by flag
+            """
+            metadata_item_path = f"{time_slice_dir}/metadata.json"
+
             for key, asset in pystac_assets:
                 item.add_asset(key=key, asset=asset)
 
-            
             
             json_str = (json.dumps(item.to_dict(), indent=4))
             #printing metadata.json test output file
             with open(metadata_item_path, "w+") as metadata:
                 metadata.write(json_str)
+            """
+            
             item.validate()
-
             
 
             #if we add a collection we MUST add a link
@@ -197,14 +223,42 @@ class Raster2STAC():
                         media_type=pystac.MediaType.JSON,
                     )
                 )
+            
+            # self.stac_collection.add_item(item)
+            
+            # Append the item to the list instead of adding it to the collection
+            item_list.append(item.to_dict())
 
-            self.stac_collection.add_item(item)
-            #fc.append(item.to_dict())
-    
-        json_str = (json.dumps(self.stac_collection.to_dict(), indent=4))
+
+        # Calculate overall spatial extent
+        minx, miny, maxx, maxy = zip(*spatial_extents)
+        overall_bbox = [min(minx), min(miny), max(maxx), max(maxy)]
+
+        # Calculate overall temporal extent
+        min_datetime = min(temporal_extents, key=lambda x: x[0])[0]
+        max_datetime = max(temporal_extents, key=lambda x: x[1])[1]
+        overall_temporal_extent = [min_datetime, max_datetime]
+
+        s_ext = pystac.SpatialExtent([overall_bbox])
+        t_ext = pystac.TemporalExtent([overall_temporal_extent])
+
+        self.stac_collection = pystac.collection.Collection(
+            id=self.collection_id,
+            description="desc",
+            extent=pystac.Extent(spatial=s_ext, temporal=t_ext),
+            extra_fields={"stac_version": "1.0.0"},
+            
+        )
+
+        # Create a single JSON file with all the items
+        stac_collection_dict = self.stac_collection.to_dict()
+        stac_collection_dict["features"] = item_list  # Replace the "features" field with the list of items
+
+        json_str = json.dumps(stac_collection_dict, indent=4)
         
         #printing metadata.json test output file
+
+        #TS_tmp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        #with open(f"metadata_{TS_tmp}.json", "w+") as metadata:
         with open(f"metadata.json", "w+") as metadata:
             metadata.write(json_str)
-
-      
