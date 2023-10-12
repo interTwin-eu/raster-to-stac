@@ -197,14 +197,13 @@ class Raster2STAC():
             item_datetime = item.datetime
             temporal_extents.append([item_datetime, item_datetime])
 
-            # TODO: produce single metatada for all items if specified by flag
-            """
-            metadata_item_path = f"{time_slice_dir}/metadata.json"
-
+           
             for key, asset in pystac_assets:
                 item.add_asset(key=key, asset=asset)
 
-            
+            # TODO: produce single metatada for all items if specified by flag
+            """
+            metadata_item_path = f"{time_slice_dir}/metadata.json"
             json_str = (json.dumps(item.to_dict(), indent=4))
             #printing metadata.json test output file
             with open(metadata_item_path, "w+") as metadata:
