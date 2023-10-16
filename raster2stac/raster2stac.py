@@ -27,7 +27,22 @@ import xarray as xr
 from typing import Callable, Optional, Union
 import logging
 
+import boto3
+import botocore
+
 _log = logging.getLogger(__name__)
+#_log.setLevel(logging.INFO)
+
+conf_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'conf.json')
+
+# loading confs from conf.json
+with open(conf_path, 'r') as f:
+    conf_data = json.load(f)
+
+# loadng AWS credentials/confs
+aws_access_key = conf_data["s3"]["aws_access_key"]
+aws_secret_key = conf_data["s3"]["aws_secret_key"]
+#aws_region    = conf_data["s3"]["aws_region"]'
 
 class Raster2STAC():
     
@@ -38,8 +53,11 @@ class Raster2STAC():
                  collection_url: Optional[str] = None,
                  output_folder: Optional[str] = None,
                  output_file: Optional[str] = None,
-                 description: Optional[str] = "",             
-                 verbose=False
+                 description: Optional[str] = "",
+                 stac_version="1.0.0",
+                 verbose=False,
+                 bucket_name = conf_data["s3"]["bucket_name"],
+                 bucket_file_prefix = conf_data["s3"]["bucket_file_prefix"]
                 ):
                 
         self.data = data
@@ -61,6 +79,9 @@ class Raster2STAC():
         self.collection_id = collection_id
         self.collection_url = collection_url
         self.description = description
+
+        self.stac_version = stac_version
+
 
         self.extensions = [
             f"https://stac-extensions.github.io/projection/{PROJECTION_EXT_VERSION}/schema.json", 
@@ -87,8 +108,34 @@ class Raster2STAC():
 
         self.verbose = verbose
 
-    def set_media_type(self,media_type: pystac.MediaType):
+        self.bucket_name = bucket_name
+        self.bucket_file_prefix = bucket_file_prefix
+
+        # Initializing an S3 client
+        self.s3_client = boto3.client('s3', aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key) #region_name=aws_region, 
+
+
+    def set_media_type(self, media_type: pystac.MediaType):
         self.media_type = media_type
+
+    # TODO/FIXME: maybe better to put this method as an external static function? (and s3_client attribute as global variable) 
+    def upload_s3(self, file_path):
+        #Getting object name adding prefix + '/' + local_file_name
+        prefix = self.bucket_file_prefix
+        file_name = os.path.basename(file_path)
+        object_name = f"{prefix if prefix.endswith('/') else prefix + '/'}{file_name}"
+
+        try:
+            self.s3_client.upload_file(file_path, self.bucket_name, object_name)
+
+            if self.verbose: 
+                _log.debug(f'Successfully uploaded {file_name} to {self.bucket_name} as {object_name}')
+        except botocore.exceptions.NoCredentialsError:
+            if self.verbose:
+                _log.debug('AWS credentials not found. Make sure you set the correct access key and secret key.')
+        except botocore.exceptions.ClientError as e:
+            if self.verbose:
+                _log.debug(f'Error uploading file: {e.response["Error"]["Message"]}')
 
     def generate_stac(self):
 
@@ -139,6 +186,11 @@ class Raster2STAC():
 
                 # Write the result to the GeoTIFF file
                 self.data.loc[{self.t_dim:t,self.b_dim:band}].rio.to_raster(raster_path=path, driver='COG')
+
+                #Uploading file to s3
+                _log.debug(f"Uploading {path} to {self.bucket_file_prefix if self.bucket_file_prefix.endswith('/') else self.bucket_file_prefix + '/'}{os.path.basename(path)}")
+                self.upload_s3(path)
+
                 
                 bboxes = []
 
@@ -184,6 +236,8 @@ class Raster2STAC():
             minx, miny, maxx, maxy = zip(*bboxes)
             bbox = [min(minx), min(miny), max(maxx), max(maxy)]
 
+            # metadata_item_path = f"{time_slice_dir}/metadata.json"
+
             # item
             item = pystac.Item(
                 id=time_str,
@@ -193,7 +247,7 @@ class Raster2STAC():
                 stac_extensions=self.extensions,
                 datetime=str_to_datetime(str(t)),
                 properties=self.properties,
-                #href=metadata_item_path # Commented on Oct 12
+                # href=metadata_item_path # no more needed after removing JSON for every item approach 
             )
 
             # Calculate the item's spatial extent and add it to the list
@@ -204,13 +258,12 @@ class Raster2STAC():
             item_datetime = item.datetime
             temporal_extents.append([item_datetime, item_datetime])
 
-           
+
             for key, asset in pystac_assets:
                 item.add_asset(key=key, asset=asset)
-
-            # TODO: produce single metatada for all items if specified by flag
+            
             """
-            metadata_item_path = f"{time_slice_dir}/metadata.json"
+            # produce single metatada for all items if specified by flag
             json_str = (json.dumps(item.to_dict(), indent=4))
             #printing metadata.json test output file
             with open(metadata_item_path, "w+") as metadata:
@@ -229,7 +282,9 @@ class Raster2STAC():
                         media_type=pystac.MediaType.JSON,
                     )
                 )
-
+            
+            # self.stac_collection.add_item(item)
+            
             # Append the item to the list instead of adding it to the collection
             item_dict = item.to_dict()
             item_list.append(copy.deepcopy(item_dict)) # If we don't get a deep copy, the properties datetime gets overwritten in the next iteration of the loop, don't know why.
@@ -252,7 +307,7 @@ class Raster2STAC():
             id=self.collection_id,
             description=self.description,
             extent=pystac.Extent(spatial=s_ext, temporal=t_ext),
-            extra_fields={"stac_version": "1.0.0"},
+            extra_fields={"stac_version": self.stac_version},
             
         )
 
@@ -263,9 +318,10 @@ class Raster2STAC():
         json_str = json.dumps(stac_collection_dict, indent=4)
         
         #printing metadata.json test output file
-
-        #TS_tmp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        #with open(f"metadata_{TS_tmp}.json", "w+") as metadata:
         output_path = Path(self.output_folder) / Path(self.output_file)
         with open(output_path, "w+") as metadata:
             metadata.write(json_str)
+
+        #Uploading metadata JSON file to s3
+        _log.debug(f"Uploading metatada JSON \"{output_path}\" to {self.bucket_file_prefix if self.bucket_file_prefix.endswith('/') else self.bucket_file_prefix + '/'}{os.path.basename(output_path)}")
+        self.upload_s3(output_path)

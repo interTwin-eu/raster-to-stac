@@ -40,6 +40,8 @@ s2_datacube = local_conn.load_collection(local_collection)
 exec_results = s2_datacube.execute()
 
 
-r2s = r2slib.Raster2STAC(exec_results, output_folder='./results/', collection_id="test-id", verbose=True)
+r2s = r2slib.Raster2STAC(exec_results, output_folder='./results/', collection_id="test-id",
+                                description="Description", output_file='test_collection.json',
+                                stac_version="1.0.0", verbose=True)
 
 r2s.generate_stac()

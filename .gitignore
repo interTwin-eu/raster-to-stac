@@ -1,4 +1,4 @@
-metadata.json
+*.json
 tmp*
 results/
 venv/
