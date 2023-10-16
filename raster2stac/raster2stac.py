@@ -3,6 +3,8 @@ import os
 import pystac
 from pystac.utils import str_to_datetime
 import rasterio
+from pathlib import Path
+import copy
 
 # Import extension version
 from rio_stac.stac import (
@@ -23,7 +25,9 @@ import pandas as pd
 import json
 import xarray as xr
 from typing import Callable, Optional, Union
+import logging
 
+_log = logging.getLogger(__name__)
 
 class Raster2STAC():
     
@@ -33,6 +37,8 @@ class Raster2STAC():
                  collection_id: Optional[str] = None,         #collection id as string (same of collection and items)
                  collection_url: Optional[str] = None,
                  output_folder: Optional[str] = None,
+                 output_file: Optional[str] = None,
+                 description: Optional[str] = "",             
                  verbose=False
                 ):
                 
@@ -54,6 +60,7 @@ class Raster2STAC():
         # name of collection the item belongs to
         self.collection_id = collection_id
         self.collection_url = collection_url
+        self.description = description
 
         self.extensions = [
             f"https://stac-extensions.github.io/projection/{PROJECTION_EXT_VERSION}/schema.json", 
@@ -66,7 +73,12 @@ class Raster2STAC():
         if output_folder is not None:
             self.output_folder = output_folder
         else:
-            self.output_folder = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3]
+            self.output_folder = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3]   
+
+        if output_file is not None:
+            self.output_file = output_file
+        else:
+            self.output_file = "collection.json"
         
         if not os.path.exists(self.output_folder):
             os.mkdir(self.output_folder)
@@ -83,12 +95,6 @@ class Raster2STAC():
         spatial_extents = []
         temporal_extents = []
 
-        """self.stac_collection = pystac.collection.Collection(id=self.collection_id, description="desc", 
-                                                  extent = None,
-                                                  #extent = pystac.Extent(spatial=s_ext, temporal= t_ext), 
-                                                  extra_fields = {"stac_version": "1.0.0"})      
-        """
-
         item_list = []  # Create a list to store the items
 
         # Get the time dimension values
@@ -97,11 +103,11 @@ class Raster2STAC():
         #Cycling all timestamps
 
         if self.verbose:
-            print("Cycling all timestamps")
+            _log.debug("Cycling all timestamps")
 
         for t in time_values:
             if self.verbose:
-                print(f"\nts: {t}")
+                _log.debug(f"\nts: {t}")
 
             # Convert the time value to a datetime object
             timestamp = pd.Timestamp(t)
@@ -122,11 +128,11 @@ class Raster2STAC():
 
             # Cycling all bands
             if self.verbose:
-                print("Cycling all bands")
+                _log.debug("Cycling all bands")
 
             for band in bands:
                 if self.verbose:
-                    print(f"b: {band}")
+                    _log.debug(f"b: {band}")
 
                 # Define the GeoTIFF file path for this time slice and band
                 path = os.path.join(time_slice_dir, f"{band}_{time_str}.tif")
@@ -189,6 +195,7 @@ class Raster2STAC():
                 properties=self.properties,
                 #href=metadata_item_path # Commented on Oct 12
             )
+
             # Calculate the item's spatial extent and add it to the list
             item_bbox = item.bbox
             spatial_extents.append(item_bbox)
@@ -222,13 +229,13 @@ class Raster2STAC():
                         media_type=pystac.MediaType.JSON,
                     )
                 )
-            
-            # self.stac_collection.add_item(item)
-            
+
             # Append the item to the list instead of adding it to the collection
-            item_list.append(item.to_dict())
+            item_dict = item.to_dict()
+            item_list.append(copy.deepcopy(item_dict)) # If we don't get a deep copy, the properties datetime gets overwritten in the next iteration of the loop, don't know why.
 
 
+        
         # Calculate overall spatial extent
         minx, miny, maxx, maxy = zip(*spatial_extents)
         overall_bbox = [min(minx), min(miny), max(maxx), max(maxy)]
@@ -243,7 +250,7 @@ class Raster2STAC():
 
         self.stac_collection = pystac.collection.Collection(
             id=self.collection_id,
-            description="desc",
+            description=self.description,
             extent=pystac.Extent(spatial=s_ext, temporal=t_ext),
             extra_fields={"stac_version": "1.0.0"},
             
@@ -259,5 +266,6 @@ class Raster2STAC():
 
         #TS_tmp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
         #with open(f"metadata_{TS_tmp}.json", "w+") as metadata:
-        with open(f"metadata.json", "w+") as metadata:
+        output_path = Path(self.output_folder) / Path(self.output_file)
+        with open(output_path, "w+") as metadata:
             metadata.write(json_str)
