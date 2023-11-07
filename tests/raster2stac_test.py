@@ -31,17 +31,31 @@ from raster2stac import raster2stac as r2slib
 
 
 local_data_folders = [
-    "/home/lmercurio/dev/test-rio-stac/openeo-localprocessing-data/sample_netcdf",
-    "/home/lmercurio/dev/test-rio-stac/openeo-localprocessing-data/sample_geotiff",
+    "../data/test_basil",
 ]
 local_conn = LocalConnection(local_data_folders)
-local_collection = "/home/lmercurio/dev/test-rio-stac/openeo-localprocessing-data/sample_netcdf/S2_L2A_sample.nc"
+#local_collection = "../data/test_basil/Bosco_2021_2023.nc"
+local_collection = "../data/test_michele/S2_L2A_sample.nc"
+
 s2_datacube = local_conn.load_collection(local_collection)
 exec_results = s2_datacube.execute()
 
 
-r2s = r2slib.Raster2STAC(exec_results, output_folder='./results/', collection_id="test-id",
-                                description="Description", output_file='test_collection.json',
-                                stac_version="1.0.0", verbose=True)
+providers = {
+    "url":"http://www.eurac.edu",
+    "name":"Eurac EO WCS",
+    "roles":["host"]
+    }
+
+#TITLE
+#COLLECTION_ID
+
+r2s = r2slib.Raster2STAC(exec_results, output_folder='./results/', collection_id="test-collection-1", description="Description",
+                                output_file='test_collection.json', stac_version="1.0.0", verbose=True, s3_upload=False, version="1.0",
+                                providers=providers, output_format="csv", title="Collection di test nr 1",
+                                collection_url="https://url-to-coll.col/collection", license="test-license", write_json_items = True,
+                                keywords=['key1', 'key2', 'key3', 'key4'], sci_citation='N/A',
+                                #url_collection=''
+                                )
 
 r2s.generate_stac()
