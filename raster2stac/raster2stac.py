@@ -333,12 +333,11 @@ class Raster2STAC():
             
             item.validate()
             
+            item_dict = item.to_dict() #FIXME: declared and assigned now for root issue in item link (see below)
+
             #if we add a collection we MUST add a link
-            if self.collection_id and self.collection_url:
-               
-                """
- 
-                """
+            if self.collection_id and self.collection_url: 
+
                
                 item.add_link(
                     pystac.Link(
@@ -365,7 +364,15 @@ class Raster2STAC():
                         media_type=pystac.MediaType.JSON,
                     )
                 )
-                item.add_link(
+
+                item_dict = item.to_dict()
+
+                #FIXME: persistent pystac bug or logical error (urllib error when adding root link to current item)
+                # now this link is added manually by editing the dict
+                item_dict["links"].append({"rel": "root", "href": self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}"), "type": "application/json"})
+
+
+                """item.add_link(
                     pystac.Link(
                         pystac.RelType.ROOT,
                         #f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
@@ -373,12 +380,12 @@ class Raster2STAC():
                         self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}"),
                         media_type=pystac.MediaType.JSON,
                     )
-                )               
+                ) """              
                 
             # self.stac_collection.add_item(item)
             
             # Append the item to the list instead of adding it to the collection
-            item_dict = item.to_dict()
+            #item_dict = item.to_dict()
             item_dict["collection"] = self.collection_id #self.title
 
             if self.output_format == "json_full":
