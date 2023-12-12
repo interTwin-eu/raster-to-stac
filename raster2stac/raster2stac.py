@@ -58,7 +58,7 @@ class Raster2STAC():
                  title: Optional[str] = None,
 
                  keywords: Optional[list] = None,  ### down below: if None, don't put that key on the structure
-                 providers: Optional[dict] = None,  ### down below: if None, don't put that key on the structure
+                 providers: Optional[list] = None,  ### down below: if None, don't put that key on the structure
 
                  stac_version="1.0.0",
                  verbose=False,

@@ -41,18 +41,16 @@ s2_datacube = local_conn.load_collection(local_collection)
 exec_results = s2_datacube.execute()
 
 
-providers = {
+providers = [{
     "url":"http://www.eurac.edu",
     "name":"Eurac EO WCS",
     "roles":["host"]
-    }
+    }]
 
-#TITLE
-#COLLECTION_ID
 
 r2s = r2slib.Raster2STAC(exec_results, output_folder='./results/', collection_id="test-collection-1", description="Description",
                                 output_file='test_collection.json', stac_version="1.0.0", verbose=True, s3_upload=False, version="1.0",
-                                providers=providers, output_format="csv", title="Collection di test nr 1",
+                                providers=providers, output_format="csv", title="This is a test collection",
                                 collection_url="https://url-to-coll.col/collection", license="test-license", write_json_items = True,
                                 keywords=['key1', 'key2', 'key3', 'key4'], sci_citation='N/A',
                                 #url_collection=''
