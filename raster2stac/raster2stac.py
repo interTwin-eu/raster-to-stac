@@ -146,8 +146,8 @@ class Raster2STAC():
 
         self.output_format = output_format
 
-        if self.output_format != "json_full":
-            self.s3_upload = False
+        # if self.output_format not in[ "json_full", "csv" ]:
+        #    self.s3_upload = False
 
         self.license = license
 
@@ -390,7 +390,7 @@ class Raster2STAC():
 
             if self.output_format == "json_full":
                 item_list.append(copy.deepcopy(item_dict)) # If we don't get a deep copy, the properties datetime gets overwritten in the next iteration of the loop, don't know why.
-            else:
+            elif self.output_format == "csv":
                 item_oneline = json.dumps(item_dict, separators=(",", ":"), ensure_ascii=False)
 
                 output_path = Path(self.output_folder)
@@ -405,7 +405,9 @@ class Raster2STAC():
 
                     with open(f"{self.fix_path_slash(jsons_path)}{self.collection_id}-{time_str}.json", 'w+') as out_json:
                         out_json.write(json.dumps(item_dict, indent=4))
-            #break
+            else:
+                pass # TODO: implement further formats here
+            
         
         # Calculate overall spatial extent
         minx, miny, maxx, maxy = zip(*spatial_extents)
