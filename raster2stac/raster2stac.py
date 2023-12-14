@@ -49,7 +49,9 @@ aws_secret_key = conf_data["s3"]["aws_secret_key"]
 
 class Raster2STAC():
     
-    def __init__(self,data: xr.DataArray,
+    def __init__(self,
+                 #data: xr.DataArray,
+                 data,
                  collection_id: Optional[str] = None,         #collection id as string (same of collection and items)
                  collection_url: Optional[str] = None,
                  output_folder: Optional[str] = None,
@@ -72,9 +74,21 @@ class Raster2STAC():
                  write_json_items = False,
                  sci_citation=None
                 ):
-                
-        self.data = data
         
+        if isinstance(data, xr.DataArray) or isinstance(data, str):
+            if(isinstance(data, xr.DataArray)):
+                self.data = data
+            elif(isinstance(data, str)):
+                from openeo.local import LocalConnection
+                source_nc = data 
+                source_path = os.path.dirname(data)
+                local_conn = LocalConnection(source_path)
+                s2_datacube = local_conn.load_collection(source_nc)
+                self.data = s2_datacube.execute()
+        else:
+            raise ValueError("'data' paramter must be either xr.DataArray or str")
+
+
         self.X_DIM = self.data.openeo.x_dim
         self.Y_DIM = self.data.openeo.y_dim
         self.T_DIM = self.data.openeo.temporal_dims[0]
