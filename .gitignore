@@ -6,4 +6,4 @@ __pycache__/
 result_NDVI/
 out*
 data/
-test/
+tests/
