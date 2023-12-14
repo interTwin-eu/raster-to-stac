@@ -10,7 +10,7 @@ sys.path.append("path/to/raster2stac")
 from raster2stac import raster2stac as r2slib
 
 r2s = r2slib.Raster2STAC(
-    "/home/lmercurio/dev/raster-to-stac/data/test_michele/S2_L2A_sample.nc",
+    "/path/to/raster-to-stac/data/test_michele/S2_L2A_sample.nc",
     output_folder="./results/",
     collection_id="test-collection-1",
     description="This is the description",
