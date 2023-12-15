@@ -1,3 +1,14 @@
+"""
+Raster2STAC - Extract STAC format metadata from raster data 
+
+This module provides a class `Raster2STAC` for extracting from raster data, represented as an `xr.DataArray`
+or a file path which links to a local .nc file (that will be converted in `xr.DataArray`), 
+SpatioTemporal Asset Catalog (STAC) format metadata JSON files.
+This allows the output data to be ingested into Eurac's STAC FastApi
+
+Author: Mercurio Lorenzo, Eurac Research - Inst. for Earth Observation, Bolzano/Bozen IT
+Date: 2023-12-15
+"""
 import datetime 
 import os 
 import pystac
@@ -5,14 +16,12 @@ from pystac.utils import str_to_datetime
 import rasterio
 from pathlib import Path
 import copy
-
 # Import extension version
 from rio_stac.stac import (
     PROJECTION_EXT_VERSION,
     RASTER_EXT_VERSION,
     EO_EXT_VERSION
 )
-
 # Import rio_stac methods
 from rio_stac.stac import (
     get_dataset_geom,
@@ -26,7 +35,6 @@ import json
 import xarray as xr
 from typing import Callable, Optional, Union
 import logging
-
 import boto3
 import botocore
 import openeo_processes_dask
@@ -48,18 +56,76 @@ aws_secret_key = conf_data["s3"]["aws_secret_key"]
 #aws_region    = conf_data["s3"]["aws_region"]
 
 class Raster2STAC():
-    
-    def __init__(self,data: xr.DataArray,
-                 collection_id: Optional[str] = None,         #collection id as string (same of collection and items)
-                 collection_url: Optional[str] = None,
+    """
+    Raster2STAC Class - Converte dati raster nel formato STAC.
+
+    Args:
+        data: str or xr.DataArray
+            Raster data as xr.DataArray or file path referring to a proper netCDF file.
+        collection_id: str
+            Identifier of the collection as a string (Example: 'blue-river-basin')
+        collection_url: str
+            Collection URL (must refer to the FastAPI URL where this collection will be uploaded).
+        item_prefix: Optional[str] = ""
+            Prefix to add before the datetime as item_id, if the same datetime can occur in multiple items.
+        output_folder: Optional[str] = None
+            Local folder for rasters and STAC metadata outputs. Default folder will be set as run timestamp folder 
+            (ex: ./20231215103000/)
+        output_file: Optional[str] = None,  # Default value is None
+            The name for local STAC collection metadata file (in JSON);
+        description: Optional[str] = ""
+            Description of the STAC collection.
+        title: Optional[str] = None,
+            Title of the STAC collection.
+        ignore_warns: Optional[bool] = False,
+            If True, warnings during processing (such as xr lib warnings) will be ignored.
+        keywords: Optional[list] = None,
+            Keywords associated with the STAC item.
+        providers: Optional[list] = None,
+            Data providers associated with the STAC item.
+        stac_version: str = "1.0.0",
+            Version of the STAC specification to use.
+        verbose: bool = False,
+            If True, enable verbose mode for detailed logging.
+        s3_upload: bool = True,
+            If True, upload files to AWS S3 (S3 settings can be set on 'conf.json' file, see README.md).
+        bucket_name: str = conf_data["s3"]["bucket_name"],
+            Part of AWS S3 configuration: bucket name.
+        bucket_file_prefix: str = conf_data["s3"]["bucket_file_prefix"],
+             Part of AWS S3 configuration: Prefix for files in the S3 bucket.
+        aws_region: str = conf_data["s3"]["aws_region"],
+             Part of AWS S3 configuration: AWS region for S3.
+        version: Optional[str] = None,
+            Version of the STAC collection.
+        output_format: str = "json_full"
+            Output format for the STAC catalogs metadata files ("json_full" and "csv" formats are available)
+            json_full: allows the items to be included in the same JSON file as collection metadata one, under 
+            "features" dict
+            csv: the collection metadata file will be outputed as json without items and the items will be put
+            in a csv file, with one compact JSON data per-line, representing the item's metadata  
+        license: Optional[str] = None,
+            License information about STAC collection and its assets.
+        write_json_items: bool = False,
+            If True, write individual JSON files for each item. This is useful to check beautified jsons for each
+            item while on "csv" output format mode
+        sci_citation: Optional[str] = None
+            Scientific citation(s) reference(s) about STAC collection.
+    """
+
+
+
+    def __init__(self,
+                 data,
+                 collection_id,
+                 collection_url,
+                 item_prefix: Optional[str] = "",
                  output_folder: Optional[str] = None,
                  output_file: Optional[str] = None,
                  description: Optional[str] = "",
                  title: Optional[str] = None,
-
-                 keywords: Optional[list] = None,  ### down below: if None, don't put that key on the structure
-                 providers: Optional[dict] = None,  ### down below: if None, don't put that key on the structure
-
+                 ignore_warns: Optional[bool] = False,
+                 keywords: Optional[list] = None,
+                 providers: Optional[list] = None,
                  stac_version="1.0.0",
                  verbose=False,
                  s3_upload=True,
@@ -72,42 +138,44 @@ class Raster2STAC():
                  write_json_items = False,
                  sci_citation=None
                 ):
-                
-        self.data = data
         
+        if ignore_warns == True:
+            import warnings
+            warnings.filterwarnings("ignore")
+
+        if isinstance(data, xr.DataArray) or isinstance(data, str):
+            if(isinstance(data, xr.DataArray)):
+                self.data = data
+            elif(isinstance(data, str)):
+                from openeo.local import LocalConnection
+                source_nc = data 
+                source_path = os.path.dirname(data)
+                local_conn = LocalConnection(source_path)
+                s2_datacube = local_conn.load_collection(source_nc)
+                self.data = s2_datacube.execute()
+        else:
+            raise ValueError("'data' paramter must be either xr.DataArray or str")
+
         self.X_DIM = self.data.openeo.x_dim
         self.Y_DIM = self.data.openeo.y_dim
         self.T_DIM = self.data.openeo.temporal_dims[0]
         self.B_DIM = self.data.openeo.band_dims[0]
-
-        
         self.pystac_assets = []
-
         self.media_type = None
-
-        # additional properties to add in the item
-        self.properties = {}
-
-        # datetime associated with the item
-        self.input_datetime = None
-
-        # name of collection the item belongs to
-        self.collection_id = collection_id
+        self.properties = {} # additional properties to add in the item
+        self.input_datetime = None # datetime associated with the item
+        self.collection_id = collection_id # name of collection the item belongs to
         self.collection_url = collection_url
+        self.item_prefix = item_prefix
         self.description = description
-
         self.keywords = keywords
-
         self.providers = providers
-
         self.stac_version = stac_version
-
         self.extensions = [
             f"https://stac-extensions.github.io/projection/{PROJECTION_EXT_VERSION}/schema.json", 
             f"https://stac-extensions.github.io/raster/{RASTER_EXT_VERSION}/schema.json",
             f"https://stac-extensions.github.io/eo/{EO_EXT_VERSION}/schema.json",
         ]
-        
         self.set_media_type(pystac.MediaType.COG)  # we could also use rio_stac.stac.get_media_type)
         
         if output_folder is not None:
@@ -116,28 +184,24 @@ class Raster2STAC():
             self.output_folder = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3]   
 
         if output_file is not None:
+            if not output_file.endswith(".json"):
+                output_file += ".json"
+            
             self.output_file = output_file
         else:
-            self.output_file = "collection.json"
+            self.output_file = f"{self.collection_id}.json"
         
         if not os.path.exists(self.output_folder):
             os.mkdir(self.output_folder)
 
         self.stac_collection = None
-
         self.verbose = verbose
-
         self.bucket_name = bucket_name
         self.bucket_file_prefix = bucket_file_prefix
-
         self.aws_region = aws_region
-
         self.s3_upload = s3_upload
-
         self.s3_client = None
-
         self.version = version 
-
         self.title = title
 
         if self.s3_upload:
@@ -145,19 +209,14 @@ class Raster2STAC():
             self.s3_client = boto3.client('s3', aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key) #region_name=aws_region, 
 
         self.output_format = output_format
-
-        if self.output_format != "json_full":
-            self.s3_upload = False
-
         self.license = license
-
         self.write_json_items = write_json_items
-
         self.sci_citation = sci_citation
+
+        #TODO: implement following attributes: self.overwrite, 
 
     def fix_path_slash(self, res_loc):
         return res_loc if res_loc.endswith('/') else res_loc + '/'
-
 
     def set_media_type(self, media_type: pystac.MediaType):
         self.media_type = media_type
@@ -197,13 +256,15 @@ class Raster2STAC():
         # Get the time dimension values
         time_values = self.data[self.T_DIM].values
         
-        #Cycling all timestamps
-
+        eo_info = {}
+        
+        #resetting CSV file
+        open(f"{Path(self.output_folder)}/items.csv", 'w+') 
+        
         if self.verbose:
             _log.debug("Cycling all timestamps")
 
-        eo_info = {}
-
+        #Cycling all timestamps
         for t in time_values:
             if self.verbose:
                 _log.debug(f"\nts: {t}")
@@ -213,6 +274,8 @@ class Raster2STAC():
 
             # Format the timestamp as a string to use in the file name
             time_str = timestamp.strftime('%Y%m%d%H%M%S')
+
+            item_id = f"{f'{self.item_prefix}_' if self.item_prefix != '' else ''}{time_str}"
 
             # Create a unique directory for each time slice
             time_slice_dir = os.path.join(self.output_folder, time_str)
@@ -284,6 +347,8 @@ class Raster2STAC():
                     if cloudcover is not None:
                         self.properties.update({"eo:cloud_cover": int(cloudcover)})
 
+                    eo_info["eo:bands"] = [band_dict]
+
                     pystac_assets.append(
                         (
                             band, 
@@ -309,10 +374,10 @@ class Raster2STAC():
 
             # item
             item = pystac.Item(
-                id=time_str,
+                id=item_id,
                 geometry=bbox_to_geom(bbox),
                 bbox=bbox,
-                collection=None,#self.collection_id,
+                collection=None, #self.collection_id, #FIXME: da errore se lo si decommenta
                 stac_extensions=self.extensions,
                 datetime=str_to_datetime(str(t)),
                 properties=self.properties,
@@ -333,64 +398,45 @@ class Raster2STAC():
             
             item.validate()
             
-            item_dict = item.to_dict() #FIXME: declared and assigned now for root issue in item link (see below)
-
-            #if we add a collection we MUST add a link
-            if self.collection_id and self.collection_url: 
-
-               
-                item.add_link(
-                    pystac.Link(
-                        pystac.RelType.COLLECTION,
-                        f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
-                        media_type=pystac.MediaType.JSON,
-                    )
+            item.add_link(
+                pystac.Link(
+                    pystac.RelType.COLLECTION,
+                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
+                    media_type=pystac.MediaType.JSON,
                 )
-                
-                item.add_link(
-                    pystac.Link(
-                        pystac.RelType.PARENT,
-                        f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
-                        media_type=pystac.MediaType.JSON,
-                    )
+            )
+            
+            item.add_link(
+                pystac.Link(
+                    pystac.RelType.PARENT,
+                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
+                    media_type=pystac.MediaType.JSON,
                 )
-                
-               
-                
-                item.add_link(
-                    pystac.Link(
-                        pystac.RelType.SELF,
-                        f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/{time_str}",
-                        media_type=pystac.MediaType.JSON,
-                    )
+            )
+            
+            item.add_link(
+                pystac.Link(
+                    pystac.RelType.SELF,
+                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/{time_str}",
+                    media_type=pystac.MediaType.JSON,
                 )
+            )
 
-                item_dict = item.to_dict()
+            item_dict = item.to_dict()
 
-                #FIXME: persistent pystac bug or logical error (urllib error when adding root link to current item)
-                # now this link is added manually by editing the dict
-                item_dict["links"].append({"rel": "root", "href": self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}"), "type": "application/json"})
+            #FIXME: persistent pystac bug or logical error (urllib error when adding root link to current item)
+            # now this link is added manually by editing the dict
+            item_dict["links"].append({"rel": "root", "href": self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}"), "type": "application/json"})
 
-
-                """item.add_link(
-                    pystac.Link(
-                        pystac.RelType.ROOT,
-                        #f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
-
-                        self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}"),
-                        media_type=pystac.MediaType.JSON,
-                    )
-                ) """              
                 
             # self.stac_collection.add_item(item)
-            
             # Append the item to the list instead of adding it to the collection
             #item_dict = item.to_dict()
-            item_dict["collection"] = self.collection_id #self.title
+            item_dict["collection"] = self.collection_id
 
             if self.output_format == "json_full":
                 item_list.append(copy.deepcopy(item_dict)) # If we don't get a deep copy, the properties datetime gets overwritten in the next iteration of the loop, don't know why.
-            else:
+            elif self.output_format == "csv":
                 item_oneline = json.dumps(item_dict, separators=(",", ":"), ensure_ascii=False)
 
                 output_path = Path(self.output_folder)
@@ -403,9 +449,11 @@ class Raster2STAC():
                     if not os.path.exists(jsons_path):
                         os.mkdir(jsons_path)
 
-                    with open(f"{self.fix_path_slash(jsons_path)}{self.collection_id}-{time_str}.json", 'w+') as out_json:
+                    with open(f"{self.fix_path_slash(jsons_path)}{self.collection_id}-{item_id}.json", 'w+') as out_json:
                         out_json.write(json.dumps(item_dict, indent=4))
-            #break
+            else:
+                pass # TODO: implement further formats here
+            
         
         # Calculate overall spatial extent
         minx, miny, maxx, maxy = zip(*spatial_extents)
@@ -457,7 +505,6 @@ class Raster2STAC():
             },
 
             self.T_DIM: {
-                #"step": "P1D",
                 "type": "temporal",
                 "extent": [str(self.data[self.T_DIM].min().values), str(self.data[self.T_DIM].max().values)],
             },
@@ -477,70 +524,42 @@ class Raster2STAC():
             extra_fields=extra_fields,
         )
 
-        #if we add a collection we MUST add a link
-        if self.collection_id and self.collection_url:
-            self.stac_collection.add_link(
-                pystac.Link(
-                    pystac.RelType.ITEMS,
-                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items",
-                    media_type=pystac.MediaType.JSON,
-                )
+        
+        self.stac_collection.add_link(
+            pystac.Link(
+                pystac.RelType.ITEMS,
+                f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items",
+                media_type=pystac.MediaType.JSON,
             )
+        )
+        
+        self.stac_collection.add_link(
+            pystac.Link(
+                pystac.RelType.PARENT,
+                self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"),
+                media_type=pystac.MediaType.JSON,
+            )
+        )
+
+        self.stac_collection.add_link(
+                pystac.Link(
+                pystac.RelType.SELF,
+                f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
+                media_type=pystac.MediaType.JSON,
+            )
+        )
+
+        #self.stac_collection.remove_links(rel=pystac.RelType.ROOT)
+
+        self.stac_collection.add_link(
+            pystac.Link(
+                pystac.RelType.ROOT,
+                self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"),
+                media_type=pystac.MediaType.JSON,
+            )
+        )
+
             
-            self.stac_collection.add_link(
-                pystac.Link(
-                    pystac.RelType.PARENT,
-                    self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"),
-                    media_type=pystac.MediaType.JSON,
-                )
-            )
-
-            self.stac_collection.add_link(
-                 pystac.Link(
-                    pystac.RelType.SELF,
-                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
-                    media_type=pystac.MediaType.JSON,
-                )
-            )
-
-            #self.stac_collection.remove_links(rel=pystac.RelType.ROOT)
-
-            self.stac_collection.add_link(
-                pystac.Link(
-                    pystac.RelType.ROOT,
-                    self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"),
-                    media_type=pystac.MediaType.JSON,
-                )
-            )
-
-            """
-            self.stac_collection.add_links(
-                [
-                    pystac.Link(
-                    pystac.RelType.ROOT,
-                    self.get_root_url(f"{self.fix_path_slash(collection_url)}{self.collection_id}/items"),
-                    media_type=pystac.MediaType.JSON,
-                ),
-                pystac.Link(
-                    pystac.RelType.SELF,
-                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
-                    media_type=pystac.MediaType.JSON,
-                ),
-                 pystac.Link(
-                    pystac.RelType.PARENT,
-                    self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"),
-                    media_type=pystac.MediaType.JSON,
-                ),
-                 pystac.Link(
-                    pystac.RelType.ITEMS,
-                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items",
-                    media_type=pystac.MediaType.JSON,
-                )
-                ]
-            
-            )
-            """
-
         if self.license is not None:
             self.stac_collection.license = self.license
 
