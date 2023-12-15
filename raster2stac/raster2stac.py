@@ -5,14 +5,12 @@ from pystac.utils import str_to_datetime
 import rasterio
 from pathlib import Path
 import copy
-
 # Import extension version
 from rio_stac.stac import (
     PROJECTION_EXT_VERSION,
     RASTER_EXT_VERSION,
     EO_EXT_VERSION
 )
-
 # Import rio_stac methods
 from rio_stac.stac import (
     get_dataset_geom,
@@ -26,7 +24,6 @@ import json
 import xarray as xr
 from typing import Callable, Optional, Union
 import logging
-
 import boto3
 import botocore
 import openeo_processes_dask
@@ -48,21 +45,18 @@ aws_secret_key = conf_data["s3"]["aws_secret_key"]
 #aws_region    = conf_data["s3"]["aws_region"]
 
 class Raster2STAC():
-    
     def __init__(self,
                  #data: xr.DataArray,
                  data,
-                 collection_id: Optional[str] = None,         #collection id as string (same of collection and items)
-                 collection_url: Optional[str] = None,
+                 collection_id,         #collection id as string (same of collection and items)
+                 collection_url,
                  output_folder: Optional[str] = None,
                  output_file: Optional[str] = None,
                  description: Optional[str] = "",
                  title: Optional[str] = None,
                  ignore_warns: Optional[bool] = False,
-
                  keywords: Optional[list] = None,  ### down below: if None, don't put that key on the structure
                  providers: Optional[list] = None,  ### down below: if None, don't put that key on the structure
-
                  stac_version="1.0.0",
                  verbose=False,
                  s3_upload=True,
@@ -93,25 +87,15 @@ class Raster2STAC():
         else:
             raise ValueError("'data' paramter must be either xr.DataArray or str")
 
-
         self.X_DIM = self.data.openeo.x_dim
         self.Y_DIM = self.data.openeo.y_dim
         self.T_DIM = self.data.openeo.temporal_dims[0]
         self.B_DIM = self.data.openeo.band_dims[0]
-
-        
         self.pystac_assets = []
-
         self.media_type = None
-
-        # additional properties to add in the item
-        self.properties = {}
-
-        # datetime associated with the item
-        self.input_datetime = None
-
-        # name of collection the item belongs to
-        self.collection_id = collection_id
+        self.properties = {} # additional properties to add in the item
+        self.input_datetime = None # datetime associated with the item
+        self.collection_id = collection_id # name of collection the item belongs to
         self.collection_url = collection_url
         self.description = description
         self.keywords = keywords
@@ -145,7 +129,6 @@ class Raster2STAC():
         self.bucket_name = bucket_name
         self.bucket_file_prefix = bucket_file_prefix
         self.aws_region = aws_region
-
         self.s3_upload = s3_upload
         self.s3_client = None
         self.version = version 
@@ -205,7 +188,6 @@ class Raster2STAC():
         
         #resetting CSV file
         open(f"{Path(self.output_folder)}/items.csv", 'w+') 
-
         
         if self.verbose:
             _log.debug("Cycling all timestamps")
@@ -321,7 +303,7 @@ class Raster2STAC():
                 id=time_str,
                 geometry=bbox_to_geom(bbox),
                 bbox=bbox,
-                collection=self.collection_id,
+                collection=None, #self.collection_id, #FIXME: da errore se lo si decommenta
                 stac_extensions=self.extensions,
                 datetime=str_to_datetime(str(t)),
                 properties=self.properties,
@@ -342,45 +324,38 @@ class Raster2STAC():
             
             item.validate()
             
-            # BOOOH item_dict = item.to_dict() #FIXME: declared and assigned now for root issue in item link (see below)
-
-            #if we add a collection we MUST add a link
-            if self.collection_id and self.collection_url: 
-                item.add_link(
-                    pystac.Link(
-                        pystac.RelType.COLLECTION,
-                        f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
-                        media_type=pystac.MediaType.JSON,
-                    )
+            item.add_link(
+                pystac.Link(
+                    pystac.RelType.COLLECTION,
+                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
+                    media_type=pystac.MediaType.JSON,
                 )
-                
-                item.add_link(
-                    pystac.Link(
-                        pystac.RelType.PARENT,
-                        f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
-                        media_type=pystac.MediaType.JSON,
-                    )
+            )
+            
+            item.add_link(
+                pystac.Link(
+                    pystac.RelType.PARENT,
+                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
+                    media_type=pystac.MediaType.JSON,
                 )
-                
-                item.add_link(
-                    pystac.Link(
-                        pystac.RelType.SELF,
-                        f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/{time_str}",
-                        media_type=pystac.MediaType.JSON,
-                    )
+            )
+            
+            item.add_link(
+                pystac.Link(
+                    pystac.RelType.SELF,
+                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/{time_str}",
+                    media_type=pystac.MediaType.JSON,
                 )
+            )
 
-                item_dict = item.to_dict()
+            item_dict = item.to_dict()
 
-                #FIXME: persistent pystac bug or logical error (urllib error when adding root link to current item)
-                # now this link is added manually by editing the dict
-                item_dict["links"].append({"rel": "root", "href": self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}"), "type": "application/json"})
+            #FIXME: persistent pystac bug or logical error (urllib error when adding root link to current item)
+            # now this link is added manually by editing the dict
+            item_dict["links"].append({"rel": "root", "href": self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}"), "type": "application/json"})
 
-
-              
                 
             # self.stac_collection.add_item(item)
-            
             # Append the item to the list instead of adding it to the collection
             #item_dict = item.to_dict()
             item_dict["collection"] = self.collection_id
@@ -475,41 +450,40 @@ class Raster2STAC():
             extra_fields=extra_fields,
         )
 
-        #if we add a collection we MUST add a link
-        if self.collection_id and self.collection_url:
-            self.stac_collection.add_link(
-                pystac.Link(
-                    pystac.RelType.ITEMS,
-                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items",
-                    media_type=pystac.MediaType.JSON,
-                )
+        
+        self.stac_collection.add_link(
+            pystac.Link(
+                pystac.RelType.ITEMS,
+                f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items",
+                media_type=pystac.MediaType.JSON,
             )
-            
-            self.stac_collection.add_link(
-                pystac.Link(
-                    pystac.RelType.PARENT,
-                    self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"),
-                    media_type=pystac.MediaType.JSON,
-                )
+        )
+        
+        self.stac_collection.add_link(
+            pystac.Link(
+                pystac.RelType.PARENT,
+                self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"),
+                media_type=pystac.MediaType.JSON,
             )
+        )
 
-            self.stac_collection.add_link(
-                 pystac.Link(
-                    pystac.RelType.SELF,
-                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
-                    media_type=pystac.MediaType.JSON,
-                )
-            )
-
-            #self.stac_collection.remove_links(rel=pystac.RelType.ROOT)
-
-            self.stac_collection.add_link(
+        self.stac_collection.add_link(
                 pystac.Link(
-                    pystac.RelType.ROOT,
-                    self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"),
-                    media_type=pystac.MediaType.JSON,
-                )
+                pystac.RelType.SELF,
+                f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
+                media_type=pystac.MediaType.JSON,
             )
+        )
+
+        #self.stac_collection.remove_links(rel=pystac.RelType.ROOT)
+
+        self.stac_collection.add_link(
+            pystac.Link(
+                pystac.RelType.ROOT,
+                self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"),
+                media_type=pystac.MediaType.JSON,
+            )
+        )
 
             
         if self.license is not None:
