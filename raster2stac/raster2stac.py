@@ -1,3 +1,14 @@
+"""
+Raster2STAC - Extract STAC format metadata from raster data 
+
+This module provides a class `Raster2STAC` for extracting from raster data, represented as an `xr.DataArray`
+or a file path which links to a local .nc file (that will be converted in `xr.DataArray`), 
+SpatioTemporal Asset Catalog (STAC) format metadata JSON files.
+This allows the output data to be ingested into Eurac's STAC FastApi
+
+Author: Mercurio Lorenzo, Eurac Research - Inst. for Earth Observation, Bolzano/Bozen IT
+Date: 2023-12-15
+"""
 import datetime 
 import os 
 import pystac
@@ -45,18 +56,76 @@ aws_secret_key = conf_data["s3"]["aws_secret_key"]
 #aws_region    = conf_data["s3"]["aws_region"]
 
 class Raster2STAC():
+    """
+    Raster2STAC Class - Converte dati raster nel formato STAC.
+
+    Args:
+        data: str or xr.DataArray
+            Raster data as xr.DataArray or file path referring to a proper netCDF file.
+        collection_id: str
+            Identifier of the collection as a string (Example: 'blue-river-basin')
+        collection_url: str
+            Collection URL (must refer to the FastAPI URL where this collection will be uploaded).
+        item_prefix: Optional[str] = ""
+            Prefix to add before the datetime as item_id, if the same datetime can occur in multiple items.
+        output_folder: Optional[str] = None
+            Local folder for rasters and STAC metadata outputs. Default folder will be set as run timestamp folder 
+            (ex: ./20231215103000/)
+        output_file: Optional[str] = None,  # Default value is None
+            The name for local STAC collection metadata file (in JSON);
+        description: Optional[str] = ""
+            Description of the STAC collection.
+        title: Optional[str] = None,
+            Title of the STAC collection.
+        ignore_warns: Optional[bool] = False,
+            If True, warnings during processing (such as xr lib warnings) will be ignored.
+        keywords: Optional[list] = None,
+            Keywords associated with the STAC item.
+        providers: Optional[list] = None,
+            Data providers associated with the STAC item.
+        stac_version: str = "1.0.0",
+            Version of the STAC specification to use.
+        verbose: bool = False,
+            If True, enable verbose mode for detailed logging.
+        s3_upload: bool = True,
+            If True, upload files to AWS S3 (S3 settings can be set on 'conf.json' file, see README.md).
+        bucket_name: str = conf_data["s3"]["bucket_name"],
+            Part of AWS S3 configuration: bucket name.
+        bucket_file_prefix: str = conf_data["s3"]["bucket_file_prefix"],
+             Part of AWS S3 configuration: Prefix for files in the S3 bucket.
+        aws_region: str = conf_data["s3"]["aws_region"],
+             Part of AWS S3 configuration: AWS region for S3.
+        version: Optional[str] = None,
+            Version of the STAC collection.
+        output_format: str = "json_full"
+            Output format for the STAC catalogs metadata files ("json_full" and "csv" formats are available)
+            json_full: allows the items to be included in the same JSON file as collection metadata one, under 
+            "features" dict
+            csv: the collection metadata file will be outputed as json without items and the items will be put
+            in a csv file, with one compact JSON data per-line, representing the item's metadata  
+        license: Optional[str] = None,
+            License information about STAC collection and its assets.
+        write_json_items: bool = False,
+            If True, write individual JSON files for each item. This is useful to check beautified jsons for each
+            item while on "csv" output format mode
+        sci_citation: Optional[str] = None
+            Scientific citation(s) reference(s) about STAC collection.
+    """
+
+
+
     def __init__(self,
-                 #data: xr.DataArray,
                  data,
-                 collection_id,         #collection id as string (same of collection and items)
+                 collection_id,
                  collection_url,
+                 item_prefix: Optional[str] = "",
                  output_folder: Optional[str] = None,
                  output_file: Optional[str] = None,
                  description: Optional[str] = "",
                  title: Optional[str] = None,
                  ignore_warns: Optional[bool] = False,
-                 keywords: Optional[list] = None,  ### down below: if None, don't put that key on the structure
-                 providers: Optional[list] = None,  ### down below: if None, don't put that key on the structure
+                 keywords: Optional[list] = None,
+                 providers: Optional[list] = None,
                  stac_version="1.0.0",
                  verbose=False,
                  s3_upload=True,
@@ -97,6 +166,7 @@ class Raster2STAC():
         self.input_datetime = None # datetime associated with the item
         self.collection_id = collection_id # name of collection the item belongs to
         self.collection_url = collection_url
+        self.item_prefix = item_prefix
         self.description = description
         self.keywords = keywords
         self.providers = providers
@@ -142,6 +212,8 @@ class Raster2STAC():
         self.license = license
         self.write_json_items = write_json_items
         self.sci_citation = sci_citation
+
+        #TODO: implement following attributes: self.overwrite, 
 
     def fix_path_slash(self, res_loc):
         return res_loc if res_loc.endswith('/') else res_loc + '/'
@@ -202,6 +274,8 @@ class Raster2STAC():
 
             # Format the timestamp as a string to use in the file name
             time_str = timestamp.strftime('%Y%m%d%H%M%S')
+
+            item_id = f"{f'{self.item_prefix}_' if self.item_prefix != '' else ''}{time_str}"
 
             # Create a unique directory for each time slice
             time_slice_dir = os.path.join(self.output_folder, time_str)
@@ -300,7 +374,7 @@ class Raster2STAC():
 
             # item
             item = pystac.Item(
-                id=time_str,
+                id=item_id,
                 geometry=bbox_to_geom(bbox),
                 bbox=bbox,
                 collection=None, #self.collection_id, #FIXME: da errore se lo si decommenta
@@ -375,7 +449,7 @@ class Raster2STAC():
                     if not os.path.exists(jsons_path):
                         os.mkdir(jsons_path)
 
-                    with open(f"{self.fix_path_slash(jsons_path)}{self.collection_id}-{time_str}.json", 'w+') as out_json:
+                    with open(f"{self.fix_path_slash(jsons_path)}{self.collection_id}-{item_id}.json", 'w+') as out_json:
                         out_json.write(json.dumps(item_dict, indent=4))
             else:
                 pass # TODO: implement further formats here
