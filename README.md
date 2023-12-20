@@ -1,13 +1,11 @@
 # Raster-to-STAC  
-`raster-to-stac` library allows to extract STAC metadata from raster satellitar imageries (as xarrays), organizing it in catalogs and items
+`raster-to-stac` library allows to extract STAC metadata from raster satellite imageries -(as xarrays), organizing it in catalogs and items
 
 ## Requirements
 
 ## Installation
 
 ## Usage
-
-
 Example of raster2stac lib usage:
 
 ```python

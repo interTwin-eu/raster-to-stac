@@ -403,7 +403,7 @@ class Raster2STAC():
             item.add_link(
                 pystac.Link(
                     pystac.RelType.COLLECTION,
-                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
+                    f"{self.fix_path_slash(self.collection_url)}{item_id}",
                     media_type=pystac.MediaType.JSON,
                 )
             )
@@ -411,7 +411,7 @@ class Raster2STAC():
             item.add_link(
                 pystac.Link(
                     pystac.RelType.PARENT,
-                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
+                    f"{self.fix_path_slash(self.collection_url)}{item_id}",
                     media_type=pystac.MediaType.JSON,
                 )
             )
@@ -419,7 +419,7 @@ class Raster2STAC():
             item.add_link(
                 pystac.Link(
                     pystac.RelType.SELF,
-                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/{time_str}",
+                    f"{self.fix_path_slash(self.collection_url)}{item_id}/{time_str}",
                     media_type=pystac.MediaType.JSON,
                 )
             )
