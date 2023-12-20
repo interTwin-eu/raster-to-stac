@@ -216,7 +216,7 @@ class Raster2STAC():
 
         #TODO: implement following attributes: self.overwrite, 
 
-    def fix_path_slash(self, res_loc):
+    def fix_end_slash(self, res_loc):
         return res_loc if res_loc.endswith('/') else res_loc + '/'
 
     def set_media_type(self, media_type: pystac.MediaType):
@@ -227,7 +227,7 @@ class Raster2STAC():
         if self.s3_client is not None:
             prefix = self.bucket_file_prefix
             file_name = os.path.basename(file_path)
-            object_name = f"{self.fix_path_slash(prefix)}{file_name}"
+            object_name = f"{self.fix_end_slash(prefix)}{file_name}"
 
             try:
                 self.s3_client.upload_file(file_path, self.bucket_name, object_name)
@@ -311,10 +311,10 @@ class Raster2STAC():
 
                 if self.s3_upload:                                     
                     #Uploading file to s3                   
-                    _log.debug(f"Uploading {path} to {self.fix_path_slash(self.bucket_file_prefix)}{os.path.basename(path)}")
+                    _log.debug(f"Uploading {path} to {self.fix_end_slash(self.bucket_file_prefix)}{os.path.basename(path)}")
                     self.upload_s3(path)
                     
-                    link_path = f"https://{self.bucket_name}.{self.aws_region}.amazonaws.com/{self.fix_path_slash(self.bucket_file_prefix)}{curr_file_name}"
+                    link_path = f"https://{self.bucket_name}.{self.aws_region}.amazonaws.com/{self.fix_end_slash(self.bucket_file_prefix)}{curr_file_name}"
 
                 bboxes = []
 
@@ -372,7 +372,7 @@ class Raster2STAC():
             minx, miny, maxx, maxy = zip(*bboxes)
             bbox = [min(minx), min(miny), max(maxx), max(maxy)]
 
-            # metadata_item_path = f"{self.fix_path_slash(time_slice_dir)}metadata.json"
+            # metadata_item_path = f"{self.fix_end_slash(time_slice_dir)}metadata.json"
 
             # item
             item = pystac.Item(
@@ -403,7 +403,7 @@ class Raster2STAC():
             item.add_link(
                 pystac.Link(
                     pystac.RelType.COLLECTION,
-                    f"{self.fix_path_slash(self.collection_url)}{item_id}",
+                    f"{self.fix_end_slash(self.fix_end_slash(self.collection_url))}{self.fix_end_slash(self.collection_id)}",
                     media_type=pystac.MediaType.JSON,
                 )
             )
@@ -411,7 +411,7 @@ class Raster2STAC():
             item.add_link(
                 pystac.Link(
                     pystac.RelType.PARENT,
-                    f"{self.fix_path_slash(self.collection_url)}{item_id}",
+                    f"{self.fix_end_slash(self.fix_end_slash(self.collection_url))}{self.fix_end_slash(self.collection_id)}",
                     media_type=pystac.MediaType.JSON,
                 )
             )
@@ -419,7 +419,7 @@ class Raster2STAC():
             item.add_link(
                 pystac.Link(
                     pystac.RelType.SELF,
-                    f"{self.fix_path_slash(self.collection_url)}{item_id}/{time_str}",
+                    f"{self.fix_end_slash(self.fix_end_slash(self.collection_url))}{self.fix_end_slash(self.collection_id)}{self.fix_end_slash(item_id)}",
                     media_type=pystac.MediaType.JSON,
                 )
             )
@@ -428,7 +428,7 @@ class Raster2STAC():
 
             #FIXME: persistent pystac bug or logical error (urllib error when adding root link to current item)
             # now this link is added manually by editing the dict
-            item_dict["links"].append({"rel": "root", "href": self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}"), "type": "application/json"})
+            item_dict["links"].append({"rel": "root", "href": self.get_root_url(f"{self.fix_end_slash(self.collection_url)}{self.collection_id}"), "type": "application/json"})
 
                 
             # self.stac_collection.add_item(item)
@@ -451,7 +451,7 @@ class Raster2STAC():
                     if not os.path.exists(jsons_path):
                         os.mkdir(jsons_path)
 
-                    with open(f"{self.fix_path_slash(jsons_path)}{self.collection_id}-{item_id}.json", 'w+') as out_json:
+                    with open(f"{self.fix_end_slash(jsons_path)}{self.collection_id}-{item_id}.json", 'w+') as out_json:
                         out_json.write(json.dumps(item_dict, indent=4))
             else:
                 pass # TODO: implement further formats here
@@ -530,7 +530,7 @@ class Raster2STAC():
         self.stac_collection.add_link(
             pystac.Link(
                 pystac.RelType.ITEMS,
-                f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items",
+                f"{self.fix_end_slash(self.collection_url)}{self.collection_id}/items",
                 media_type=pystac.MediaType.JSON,
             )
         )
@@ -538,7 +538,7 @@ class Raster2STAC():
         self.stac_collection.add_link(
             pystac.Link(
                 pystac.RelType.PARENT,
-                self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"),
+                self.get_root_url(f"{self.fix_end_slash(self.collection_url)}{self.collection_id}/items"),
                 media_type=pystac.MediaType.JSON,
             )
         )
@@ -546,7 +546,7 @@ class Raster2STAC():
         self.stac_collection.add_link(
                 pystac.Link(
                 pystac.RelType.SELF,
-                f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
+                f"{self.fix_end_slash(self.collection_url)}{self.collection_id}",
                 media_type=pystac.MediaType.JSON,
             )
         )
@@ -556,7 +556,7 @@ class Raster2STAC():
         self.stac_collection.add_link(
             pystac.Link(
                 pystac.RelType.ROOT,
-                self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"),
+                self.get_root_url(f"{self.fix_end_slash(self.collection_url)}{self.collection_id}/items"),
                 media_type=pystac.MediaType.JSON,
             )
         )
@@ -609,9 +609,9 @@ class Raster2STAC():
 
         if self.s3_upload:
             if self.output_format == "csv": 
-                _log.debug(f"Uploading metatada items in one-line-JSON CSV file\"{output_path_csv}\" to {self.fix_path_slash(self.bucket_file_prefix)}{os.path.basename(output_path_csv)}")
+                _log.debug(f"Uploading metatada items in one-line-JSON CSV file\"{output_path_csv}\" to {self.fix_end_slash(self.bucket_file_prefix)}{os.path.basename(output_path_csv)}")
                 self.upload_s3(f"{output_path_csv}")
             
             #Uploading metadata JSON file to s3
-            _log.debug(f"Uploading metatada JSON \"{output_path_json}\" to {self.fix_path_slash(self.bucket_file_prefix)}{os.path.basename(output_path_json)}")
+            _log.debug(f"Uploading metatada JSON \"{output_path_json}\" to {self.fix_end_slash(self.bucket_file_prefix)}{os.path.basename(output_path_json)}")
             self.upload_s3(output_path_json)
