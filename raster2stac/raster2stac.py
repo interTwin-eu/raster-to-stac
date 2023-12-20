@@ -71,8 +71,8 @@ class Raster2STAC():
         output_folder: Optional[str] = None
             Local folder for rasters and STAC metadata outputs. Default folder will be set as run timestamp folder 
             (ex: ./20231215103000/)
-        output_file: Optional[str] = None,  # Default value is None
-            The name for local STAC collection metadata file (in JSON);
+        output_filename: Optional[str] = None,  # Default value is None
+            The name for local STAC collection metadata files
         description: Optional[str] = ""
             Description of the STAC collection.
         title: Optional[str] = None,
@@ -83,6 +83,8 @@ class Raster2STAC():
             Keywords associated with the STAC item.
         providers: Optional[list] = None,
             Data providers associated with the STAC item.
+        additional_links: Optional[list] = None
+            Additional links for STAC Collection (such as 'license' link)
         stac_version: str = "1.0.0",
             Version of the STAC specification to use.
         verbose: bool = False,
@@ -120,12 +122,13 @@ class Raster2STAC():
                  collection_url,
                  item_prefix: Optional[str] = "",
                  output_folder: Optional[str] = None,
-                 output_file: Optional[str] = None,
+                 output_filename: Optional[str] = None,
                  description: Optional[str] = "",
                  title: Optional[str] = None,
                  ignore_warns: Optional[bool] = False,
                  keywords: Optional[list] = None,
                  providers: Optional[list] = None,
+                 additional_links: Optional[list] = None,
                  stac_version="1.0.0",
                  verbose=False,
                  s3_upload=True,
@@ -183,16 +186,12 @@ class Raster2STAC():
         else:
             self.output_folder = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3]   
 
-        if output_file is not None:
-            if not output_file.endswith(".json"):
-                output_file += ".json"
-            
-            self.output_file = output_file
-        else:
-            self.output_file = f"{self.collection_id}.json"
+
+        if output_filename == None:
+            self.output_filename = self.collection_id
         
         if not os.path.exists(self.output_folder):
-            os.mkdir(self.output_folder)
+            os.makedirs(self.output_folder)
 
         self.stac_collection = None
         self.verbose = verbose
@@ -212,6 +211,8 @@ class Raster2STAC():
         self.license = license
         self.write_json_items = write_json_items
         self.sci_citation = sci_citation
+
+        self.additional_links = additional_links
 
         #TODO: implement following attributes: self.overwrite, 
 
@@ -259,7 +260,8 @@ class Raster2STAC():
         eo_info = {}
         
         #resetting CSV file
-        open(f"{Path(self.output_folder)}/items.csv", 'w+') 
+        if(os.path.exists(f"{Path(self.output_folder)}/{self.output_filename}-items.csv")):
+            open(f"{Path(self.output_folder)}/{self.output_filename}-items.csv", 'w+') 
         
         if self.verbose:
             _log.debug("Cycling all timestamps")
@@ -441,7 +443,7 @@ class Raster2STAC():
 
                 output_path = Path(self.output_folder)
 
-                with open(f"{output_path}/items.csv", 'a+') as out_csv:
+                with open(f"{output_path}/{self.output_filename}-items.csv", 'a+') as out_csv:
                     out_csv.write(f"{item_oneline}\n")
 
                 if self.write_json_items:
@@ -586,6 +588,11 @@ class Raster2STAC():
                     del links_dict[idx]
                     break
         
+
+        if self.additional_links is not None:
+            for lnk in self.additional_links:
+                stac_collection_dict["links"].append(lnk)
+
         
         if self.output_format == "json_full":       
             stac_collection_dict["features"] = item_list  # Replace the "features" field with the list of items
@@ -593,11 +600,18 @@ class Raster2STAC():
         json_str = json.dumps(stac_collection_dict, indent=4)
         
         #printing metadata.json test output file
-        output_path = Path(self.output_folder) / Path(self.output_file)
-        with open(output_path, "w+") as metadata:
+        output_path = Path(self.output_folder) # / Path(f"{self.output_filename}.json")
+        output_path_json = Path(self.output_folder) / Path(f"{self.output_filename}.json")
+        output_path_csv = Path(self.output_folder) / Path(f"{self.output_filename}-items.csv")
+
+        with open(f"{output_path_json}", "w+") as metadata:
             metadata.write(json_str)
 
         if self.s3_upload:
+            if self.output_format == "csv": 
+                _log.debug(f"Uploading metatada items in one-line-JSON CSV file\"{output_path_csv}\" to {self.fix_path_slash(self.bucket_file_prefix)}{os.path.basename(output_path_csv)}")
+                self.upload_s3(f"{output_path_csv}")
+            
             #Uploading metadata JSON file to s3
-            _log.debug(f"Uploading metatada JSON \"{output_path}\" to {self.fix_path_slash(self.bucket_file_prefix)}{os.path.basename(output_path)}")
-            self.upload_s3(output_path)
+            _log.debug(f"Uploading metatada JSON \"{output_path_json}\" to {self.fix_path_slash(self.bucket_file_prefix)}{os.path.basename(output_path_json)}")
+            self.upload_s3(output_path_json)
