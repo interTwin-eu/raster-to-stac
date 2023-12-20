@@ -300,7 +300,7 @@ class Raster2STAC():
                 if self.verbose:
                     _log.debug(f"b: {band}")
 
-                curr_file_name = f"{band}_{time_str}.tif"
+                curr_file_name = f"{band}_{item_id}.tif"
                 # Define the GeoTIFF file path for this time slice and band
                 path = os.path.join(time_slice_dir, curr_file_name)
 
