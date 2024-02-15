@@ -126,6 +126,7 @@ class Raster2STAC():
                  ignore_warns: Optional[bool] = False,
                  keywords: Optional[list] = None,
                  providers: Optional[list] = None,
+                 links: Optional[list] = None,
                  stac_version="1.0.0",
                  verbose=False,
                  s3_upload=True,
@@ -136,6 +137,7 @@ class Raster2STAC():
                  output_format="json_full",
                  license = None,
                  write_json_items = False,
+                 sci_doi = None,
                  sci_citation=None
                 ):
         
@@ -170,7 +172,9 @@ class Raster2STAC():
         self.description = description
         self.keywords = keywords
         self.providers = providers
+        self.links = links
         self.stac_version = stac_version
+        self.sci_doi = sci_doi
         self.extensions = [
             f"https://stac-extensions.github.io/projection/{PROJECTION_EXT_VERSION}/schema.json", 
             f"https://stac-extensions.github.io/raster/{RASTER_EXT_VERSION}/schema.json",
@@ -428,7 +432,7 @@ class Raster2STAC():
             # now this link is added manually by editing the dict
             item_dict["links"].append({"rel": "root", "href": self.get_root_url(f"{self.fix_path_slash(self.collection_url)}{self.collection_id}"), "type": "application/json"})
 
-                
+            
             # self.stac_collection.add_item(item)
             # Append the item to the list instead of adding it to the collection
             #item_dict = item.to_dict()
@@ -440,9 +444,9 @@ class Raster2STAC():
                 item_oneline = json.dumps(item_dict, separators=(",", ":"), ensure_ascii=False)
 
                 output_path = Path(self.output_folder)
-
                 with open(f"{output_path}/items.csv", 'a+') as out_csv:
                     out_csv.write(f"{item_oneline}\n")
+
 
                 if self.write_json_items:
                     jsons_path = f"{output_path}/items-json/"
@@ -485,6 +489,12 @@ class Raster2STAC():
 
         if self.sci_citation is not None:
             extra_fields["sci:citation"] = self.sci_citation
+        
+        if self.sci_doi is not None:
+            extra_fields["sci:doi"] = self.sci_doi
+        
+        if self.sci_citation is not None or self.sci_doi is not None:
+            self.extensions.append("https://stac-extensions.github.io/scientific/v1.0.0/schema.json")
 
         extra_fields["summaries"] = eo_info
 
@@ -586,12 +596,14 @@ class Raster2STAC():
                     del links_dict[idx]
                     break
         
-        
+        if self.links is not None:
+            stac_collection_dict["links"] = stac_collection_dict["links"] + self.links
+
         if self.output_format == "json_full":       
             stac_collection_dict["features"] = item_list  # Replace the "features" field with the list of items
 
         json_str = json.dumps(stac_collection_dict, indent=4)
-        
+
         #printing metadata.json test output file
         output_path = Path(self.output_folder) / Path(self.output_file)
         with open(output_path, "w+") as metadata:
