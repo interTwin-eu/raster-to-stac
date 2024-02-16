@@ -1,4 +1,9 @@
-metadata.json
-test.py
+*.json
+tmp*
 results/
 venv/
+__pycache__/
+result_NDVI/
+out*
+data/
+tests/
