@@ -42,7 +42,6 @@ from urllib.parse import urlparse, urlunparse
 
 
 _log = logging.getLogger(__name__)
-#_log.setLevel(logging.INFO)
 
 conf_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'conf.json')
 
@@ -112,6 +111,11 @@ class Raster2STAC():
             item while on "csv" output format mode
         sci_citation: Optional[str] = None
             Scientific citation(s) reference(s) about STAC collection.
+
+        skip_existing: bool = True
+            if True, skips COG generation for timestamps already processed.
+            Useful if processing stopped or crashed.
+            if False, COGs will be overwritten
     """
 
 
@@ -139,7 +143,8 @@ class Raster2STAC():
                  output_format="json_full",
                  license = None,
                  write_json_items = False,
-                 sci_citation=None
+                 sci_citation=None,
+                 skip_existing_cogs=True
                 ):
         
         if ignore_warns == True:
@@ -188,8 +193,11 @@ class Raster2STAC():
 
 
         if output_filename == None:
-            self.output_filename = self.collection_id
-        
+            if self.item_prefix == "" or self.item_prefix == None:
+                self.output_filename = self.collection_id
+            else:
+                self.output_filename = f"{self.collection_id}_{self.item_prefix}" 
+
         if not os.path.exists(self.output_folder):
             os.makedirs(self.output_folder)
 
@@ -213,8 +221,8 @@ class Raster2STAC():
         self.sci_citation = sci_citation
 
         self.additional_links = additional_links
-
-        #TODO: implement following attributes: self.overwrite, 
+       
+        self.skip_existing_cogs = skip_existing_cogs
 
     def fix_end_slash(self, res_loc):
         return res_loc if res_loc.endswith('/') else res_loc + '/'
@@ -248,6 +256,11 @@ class Raster2STAC():
         root_url = urlunparse((parsed_url.scheme, parsed_url.netloc, '', '', '', ''))
         return root_url
 
+
+    def get_items_num(self):  
+        return len(self.data[self.T_DIM].values) * len(self.data[self.B_DIM].values)
+
+
     def generate_stac(self):
         spatial_extents = []
         temporal_extents = []
@@ -268,195 +281,204 @@ class Raster2STAC():
 
         #Cycling all timestamps
         for t in time_values:
-            if self.verbose:
-                _log.debug(f"\nts: {t}")
-
-            # Convert the time value to a datetime object
-            timestamp = pd.Timestamp(t)
-
-            # Format the timestamp as a string to use in the file name
-            time_str = timestamp.strftime('%Y%m%d%H%M%S')
-
-            item_id = f"{f'{self.item_prefix}_' if self.item_prefix != '' else ''}{time_str}"
-
-            # Create a unique directory for each time slice
-            time_slice_dir = os.path.join(self.output_folder, time_str)
-
-            if not os.path.exists(time_slice_dir):
-                os.makedirs(time_slice_dir)
-
-            # Get the band name (you may need to adjust this part based on your data)
-            bands = self.data[self.B_DIM].values
-            
-            pystac_assets = []
-
-            # Cycling all bands
-            if self.verbose:
-                _log.debug("Cycling all bands")
-
-            eo_bands_list = []
-
-            for band in bands:
+            try:
                 if self.verbose:
-                    _log.debug(f"b: {band}")
+                    _log.debug(f"processing {t}")
 
-                curr_file_name = f"{band}_{item_id}.tif"
-                # Define the GeoTIFF file path for this time slice and band
-                path = os.path.join(time_slice_dir, curr_file_name)
+                # Convert the time value to a datetime object
+                timestamp = pd.Timestamp(t)
 
-                # Write the result to the GeoTIFF file
-                self.data.loc[{self.T_DIM:t,self.B_DIM:band}].to_dataset(name=band).rio.to_raster(raster_path=path, driver='COG')
+                # Format the timestamp as a string to use in the file name
+                time_str = timestamp.strftime('%Y%m%d%H%M%S')
 
-                link_path = path 
+                item_id = f"{f'{self.item_prefix}_' if self.item_prefix != '' else ''}{time_str}"
 
-                if self.s3_upload:                                     
-                    #Uploading file to s3                   
-                    _log.debug(f"Uploading {path} to {self.fix_end_slash(self.bucket_file_prefix)}{os.path.basename(path)}")
-                    self.upload_s3(path)
-                    
-                    link_path = f"https://{self.bucket_name}.{self.aws_region}.amazonaws.com/{self.fix_end_slash(self.bucket_file_prefix)}{curr_file_name}"
+                # Create a unique directory for each time slice
+                time_slice_dir = os.path.join(self.output_folder, time_str)
 
-                bboxes = []
-
-                # Create an asset dictionary for this time slice
-                with rasterio.open(path) as src_dst:
-                    # Get BBOX and Footprint
-                    dataset_geom = get_dataset_geom(src_dst, densify_pts=0, precision=-1)
-                    bboxes.append(dataset_geom["bbox"])
-
-                    proj_info = {
-                        f"proj:{name}": value
-                        for name, value in get_projection_info(src_dst).items()
-                    }
-
-                    raster_info = {
-                        "raster:bands": get_raster_info(src_dst, max_size=1024)
-                    }
-
-                    band_dict = get_eobands_info(src_dst)[0]
-
-                    if type(band_dict) == dict:
-                        del(band_dict["name"])
-                        band_dict["name"] = band_dict["description"]
-                        del(band_dict["description"])
-                    else:
-                        pass #band_dict = {}
-
-                    eo_bands_list.append(band_dict) #TODO: add to dict, rename description with name and remove name 
-                    
-                    cloudcover = src_dst.get_tag_item("CLOUDCOVER", "IMAGERY")
-                    # TODO: try to add this field to the COG. Currently not present in the files we write here.
-                    if cloudcover is not None:
-                        self.properties.update({"eo:cloud_cover": int(cloudcover)})
-
-                    eo_info["eo:bands"] = [band_dict]
-
-                    pystac_assets.append(
-                        (
-                            band, 
-                            pystac.Asset(
-                                href=link_path, 
-                                media_type=self.media_type,
-                                extra_fields={
-                                    **proj_info,
-                                    **raster_info, 
-                                    **eo_info
-                                },
-                                roles=None,
-                            ),
-                        )
-                    )
-            
-            eo_info["eo:bands"] = eo_bands_list
-
-            minx, miny, maxx, maxy = zip(*bboxes)
-            bbox = [min(minx), min(miny), max(maxx), max(maxy)]
-
-            # metadata_item_path = f"{self.fix_end_slash(time_slice_dir)}metadata.json"
-
-            # item
-            item = pystac.Item(
-                id=item_id,
-                geometry=bbox_to_geom(bbox),
-                bbox=bbox,
-                collection=None, #self.collection_id, #FIXME: da errore se lo si decommenta
-                stac_extensions=self.extensions,
-                datetime=str_to_datetime(str(t)),
-                properties=self.properties,
-                # href=metadata_item_path # no more needed after removing JSON for every item approach 
-            )
-
-            # Calculate the item's spatial extent and add it to the list
-            item_bbox = item.bbox
-            spatial_extents.append(item_bbox)
-
-            # Calculate the item's temporal extent and add it to the list
-            item_datetime = item.datetime
-            temporal_extents.append([item_datetime, item_datetime])
-
-
-            for key, asset in pystac_assets:
-                item.add_asset(key=key, asset=asset)
-            
-            item.validate()
-            
-            item.add_link(
-                pystac.Link(
-                    pystac.RelType.COLLECTION,
-                    f"{self.fix_end_slash(self.fix_end_slash(self.collection_url))}{self.fix_end_slash(self.collection_id)}",
-                    media_type=pystac.MediaType.JSON,
-                )
-            )
-            
-            item.add_link(
-                pystac.Link(
-                    pystac.RelType.PARENT,
-                    f"{self.fix_end_slash(self.fix_end_slash(self.collection_url))}{self.fix_end_slash(self.collection_id)}",
-                    media_type=pystac.MediaType.JSON,
-                )
-            )
-            
-            item.add_link(
-                pystac.Link(
-                    pystac.RelType.SELF,
-                    f"{self.fix_end_slash(self.fix_end_slash(self.collection_url))}{self.fix_end_slash(self.collection_id)}{self.fix_end_slash(item_id)}",
-                    media_type=pystac.MediaType.JSON,
-                )
-            )
-
-            item_dict = item.to_dict()
-
-            #FIXME: persistent pystac bug or logical error (urllib error when adding root link to current item)
-            # now this link is added manually by editing the dict
-            item_dict["links"].append({"rel": "root", "href": self.get_root_url(f"{self.fix_end_slash(self.collection_url)}{self.collection_id}"), "type": "application/json"})
-
+                if not os.path.exists(time_slice_dir):
+                    os.makedirs(time_slice_dir)
                 
-            # self.stac_collection.add_item(item)
-            # Append the item to the list instead of adding it to the collection
-            #item_dict = item.to_dict()
-            item_dict["collection"] = self.collection_id
+                # Get the band name (you may need to adjust this part based on your data)
+                bands = self.data[self.B_DIM].values
+                
+                pystac_assets = []
 
-            if self.output_format == "json_full":
-                item_list.append(copy.deepcopy(item_dict)) # If we don't get a deep copy, the properties datetime gets overwritten in the next iteration of the loop, don't know why.
-            elif self.output_format == "csv":
-                item_oneline = json.dumps(item_dict, separators=(",", ":"), ensure_ascii=False)
+                # Cycling all bands
+                if self.verbose:
+                    _log.debug("Cycling all bands")
 
-                output_path = Path(self.output_folder)
+                eo_bands_list = []
 
-                with open(f"{output_path}/{self.output_filename}-items.csv", 'a+') as out_csv:
-                    out_csv.write(f"{item_oneline}\n")
+                for band in bands:
+                    if self.verbose:
+                        _log.debug(f"processing band {band}")
 
-                if self.write_json_items:
-                    jsons_path = f"{output_path}/items-json/"
-                    if not os.path.exists(jsons_path):
-                        os.mkdir(jsons_path)
+                    curr_file_name = f"{band}_{item_id}.tif"
+                    # Define the GeoTIFF file path for this time slice and band
+                    path = os.path.join(time_slice_dir, curr_file_name)
 
-                    with open(f"{self.fix_end_slash(jsons_path)}{self.collection_id}-{item_id}.json", 'w+') as out_json:
-                        out_json.write(json.dumps(item_dict, indent=4))
-            else:
-                pass # TODO: implement further formats here
-            
+                    cog_existing_at_init = os.path.exists(path)
+
+                    if self.skip_existing_cogs and cog_existing_at_init:
+                        _log.debug("cog generation skipped")
+                    else:
+                        self.data.loc[{self.T_DIM:t,self.B_DIM:band}].to_dataset(name=band).rio.to_raster(raster_path=path, driver='COG')
+       
+                    link_path = path 
+
+                    if self.s3_upload:
+                        if self.skip_existing_cogs and cog_existing_at_init:                 
+                            if self.verbose:
+                                _log.debug("upload s3 skipped")
+                        else:
+                            if self.verbose:
+                                _log.debug(f"Uploading {path} to {self.fix_end_slash(self.bucket_file_prefix)}{os.path.basename(path)}")
+                            self.upload_s3(path)  
+                        
+                        link_path = f"https://{self.bucket_name}.{self.aws_region}.amazonaws.com/{self.fix_end_slash(self.bucket_file_prefix)}{curr_file_name}"
+                    
+
+                    bboxes = []
+
+                    # Create an asset dictionary for this time slice
+                    with rasterio.open(path) as src_dst:            
+                        # Get BBOX and Footprint
+                        dataset_geom = get_dataset_geom(src_dst, densify_pts=0, precision=-1)
+                        bboxes.append(dataset_geom["bbox"])
+
+                        proj_info = {
+                            f"proj:{name}": value
+                            for name, value in get_projection_info(src_dst).items()
+                        }
+
+                        raster_info = {
+                            "raster:bands": get_raster_info(src_dst, max_size=1024)
+                        }
+
+                        band_dict = get_eobands_info(src_dst)[0]
+
+                        if type(band_dict) == dict:
+                            del(band_dict["name"])
+                            band_dict["name"] = band_dict["description"]
+                            del(band_dict["description"])
+                        else:
+                            pass #band_dict = {}
+
+                        eo_bands_list.append(band_dict) #TODO: add to dict, rename description with name and remove name 
+                        
+                        cloudcover = src_dst.get_tag_item("CLOUDCOVER", "IMAGERY")
+                        # TODO: try to add this field to the COG. Currently not present in the files we write here.
+                        if cloudcover is not None:
+                            self.properties.update({"eo:cloud_cover": int(cloudcover)})
+
+                        eo_info["eo:bands"] = [band_dict]
+
+                        pystac_assets.append(
+                            (
+                                band, 
+                                pystac.Asset(
+                                    href=link_path, 
+                                    media_type=self.media_type,
+                                    extra_fields={
+                                        **proj_info,
+                                        **raster_info, 
+                                        **eo_info
+                                    },
+                                    roles=None,
+                                ),
+                            )
+                        )
+
+                eo_info["eo:bands"] = eo_bands_list
+
+                minx, miny, maxx, maxy = zip(*bboxes)
+                bbox = [min(minx), min(miny), max(maxx), max(maxy)]
+
+                # metadata_item_path = f"{self.fix_end_slash(time_slice_dir)}metadata.json"
+
+                # item
+                item = pystac.Item(
+                    id=item_id,
+                    geometry=bbox_to_geom(bbox),
+                    bbox=bbox,
+                    collection=None, #self.collection_id, #FIXME: gives an error if uncommented
+                    stac_extensions=self.extensions,
+                    datetime=str_to_datetime(str(t)),
+                    properties=self.properties,
+                    # href=metadata_item_path # no more needed after removing JSON for every item approach 
+                )
+
+                # Calculate the item's spatial extent and add it to the list
+                item_bbox = item.bbox
+                spatial_extents.append(item_bbox)
+
+                # Calculate the item's temporal extent and add it to the list
+                item_datetime = item.datetime
+                temporal_extents.append([item_datetime, item_datetime])
+
+
+                for key, asset in pystac_assets:
+                    item.add_asset(key=key, asset=asset)
+                
+                item.validate()
+                
+                item.add_link(
+                    pystac.Link(
+                        pystac.RelType.COLLECTION,
+                        f"{self.fix_end_slash(self.fix_end_slash(self.collection_url))}{self.fix_end_slash(self.collection_id)}",
+                        media_type=pystac.MediaType.JSON,
+                    )
+                )
+                
+                item.add_link(
+                    pystac.Link(
+                        pystac.RelType.PARENT,
+                        f"{self.fix_end_slash(self.fix_end_slash(self.collection_url))}{self.fix_end_slash(self.collection_id)}",
+                        media_type=pystac.MediaType.JSON,
+                    )
+                )
+                
+                item.add_link(
+                    pystac.Link(
+                        pystac.RelType.SELF,
+                        f"{self.fix_end_slash(self.fix_end_slash(self.collection_url))}{self.fix_end_slash(self.collection_id)}{self.fix_end_slash(item_id)}",
+                        media_type=pystac.MediaType.JSON,
+                    )
+                )
+
+                item_dict = item.to_dict()
+
+                #FIXME: persistent pystac bug or logical error (urllib error when adding root link to current item)
+                # now this link is added manually by editing the dict
+                item_dict["links"].append({"rel": "root", "href": self.get_root_url(f"{self.fix_end_slash(self.collection_url)}{self.collection_id}"), "type": "application/json"})
+                item_dict["collection"] = self.collection_id
+
+                if self.output_format == "json_full":
+                    item_list.append(copy.deepcopy(item_dict)) # If we don't get a deep copy, the properties datetime gets overwritten in the next iteration of the loop, don't know why.
+                elif self.output_format == "csv":
+                    item_oneline = json.dumps(item_dict, separators=(",", ":"), ensure_ascii=False)
+
+                    output_path = Path(self.output_folder)
+
+                    with open(f"{output_path}/{self.output_filename}-items.csv", 'a+') as out_csv:
+                        out_csv.write(f"{item_oneline}\n")
+
+                    if self.write_json_items:
+                        jsons_path = f"{output_path}/items-json/"
+                        if not os.path.exists(jsons_path):
+                            os.mkdir(jsons_path)
+
+                        with open(f"{self.fix_end_slash(jsons_path)}{self.collection_id}-{item_id}.json", 'w+') as out_json:
+                            out_json.write(json.dumps(item_dict, indent=4))
+                else:
+                    pass # TODO: implement further formats here
+            except Exception as e:
+                if self.verbose:
+                    now = datetime.datetime.now()
+                    _log.debug("[{now}] - Excaption: {e}")
         
+
         # Calculate overall spatial extent
         minx, miny, maxx, maxy = zip(*spatial_extents)
         overall_bbox = [min(minx), min(miny), max(maxx), max(maxy)]
