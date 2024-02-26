@@ -55,6 +55,8 @@ aws_access_key = conf_data["s3"]["aws_access_key"]
 aws_secret_key = conf_data["s3"]["aws_secret_key"]
 #aws_region    = conf_data["s3"]["aws_region"]
 
+DATACUBE_EXT_VERSION = "v1.0.0"
+
 class Raster2STAC():
     """
     Raster2STAC Class - Converte dati raster nel formato STAC.
@@ -179,22 +181,23 @@ class Raster2STAC():
             f"https://stac-extensions.github.io/projection/{PROJECTION_EXT_VERSION}/schema.json", 
             f"https://stac-extensions.github.io/raster/{RASTER_EXT_VERSION}/schema.json",
             f"https://stac-extensions.github.io/eo/{EO_EXT_VERSION}/schema.json",
+            # f"https://stac-extensions.github.io/datacube/{DATACUBE_EXT_VERSION}/schema.json",
         ]
         self.set_media_type(pystac.MediaType.COG)  # we could also use rio_stac.stac.get_media_type)
-        
+
         if output_folder is not None:
             self.output_folder = output_folder
         else:
-            self.output_folder = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3]   
+            self.output_folder = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3]
 
         if output_file is not None:
             if not output_file.endswith(".json"):
                 output_file += ".json"
-            
+
             self.output_file = output_file
         else:
             self.output_file = f"{self.collection_id}.json"
-        
+
         if not os.path.exists(self.output_folder):
             os.mkdir(self.output_folder)
 
@@ -205,12 +208,12 @@ class Raster2STAC():
         self.aws_region = aws_region
         self.s3_upload = s3_upload
         self.s3_client = None
-        self.version = version 
+        self.version = version
         self.title = title
 
         if self.s3_upload:
             # Initializing an S3 client
-            self.s3_client = boto3.client('s3', aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key) #region_name=aws_region, 
+            self.s3_client = boto3.client('s3', aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key) #region_name=aws_region,
 
         self.output_format = output_format
         self.license = license
@@ -309,7 +312,7 @@ class Raster2STAC():
                 # Write the result to the GeoTIFF file
                 self.data.loc[{self.T_DIM:t,self.B_DIM:band}].to_dataset(name=band).rio.to_raster(raster_path=path, driver='COG')
 
-                link_path = path 
+                link_path = path
 
                 if self.s3_upload:                                     
                     #Uploading file to s3                   
@@ -495,6 +498,7 @@ class Raster2STAC():
         
         if self.sci_citation is not None or self.sci_doi is not None:
             self.extensions.append("https://stac-extensions.github.io/scientific/v1.0.0/schema.json")
+    
 
         extra_fields["summaries"] = eo_info
 
