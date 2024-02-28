@@ -106,7 +106,7 @@ class Raster2STAC():
     def __init__(self,
                  data,
                  collection_id,
-                 collection_url,
+                 collection_url = None,
                  item_prefix: Optional[str] = "",
                  output_folder: Optional[str] = None,
                  output_file: Optional[str] = None,
@@ -410,7 +410,7 @@ class Raster2STAC():
             item.add_link(
                 pystac.Link(
                     pystac.RelType.SELF,
-                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/{time_str}",
+                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items/{item_id}",
                     media_type=pystac.MediaType.JSON,
                 )
             )
@@ -428,21 +428,21 @@ class Raster2STAC():
             item_dict["collection"] = self.collection_id
 
             if self.output_format == "json_full":
-                item_list.append(copy.deepcopy(item_dict)) # If we don't get a deep copy, the properties datetime gets overwritten in the next iteration of the loop, don't know why.
+                item_list.append(copy.deepcopy(item_dict)) # If we don't get a deep copy, the properties datetime gets overwritten in the next iteration of the loop.
             elif self.output_format == "csv":
                 item_oneline = json.dumps(item_dict, separators=(",", ":"), ensure_ascii=False)
 
                 output_path = Path(self.output_folder)
-                with open(f"{output_path}/items.csv", 'a+') as out_csv:
+                with open(f"{output_path}/inline_items.csv", 'a+') as out_csv:
                     out_csv.write(f"{item_oneline}\n")
 
 
                 if self.write_json_items:
-                    jsons_path = f"{output_path}/items-json/"
+                    jsons_path = f"{output_path}/items/"
                     if not os.path.exists(jsons_path):
                         os.mkdir(jsons_path)
 
-                    with open(f"{self.fix_path_slash(jsons_path)}{self.collection_id}-{item_id}.json", 'w+') as out_json:
+                    with open(f"{self.fix_path_slash(jsons_path)}{item_id}.json", 'w+') as out_json:
                         out_json.write(json.dumps(item_dict, indent=4))
             else:
                 pass # TODO: implement further formats here

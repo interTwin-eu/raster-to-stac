@@ -28,10 +28,10 @@ wget https://github.com/Open-EO/openeo-localprocessing-data/raw/main/sample_netc
 from raster2stac import Raster2STAC
 
 rs2stac = Raster2STAC(
-    data = "S2_L2A_sample.nc",
-    collection_id = "S2_L2A_SAMPLE",
-    collection_url = "",
-    output_folder="S2_L2A_SAMPLE_STAC"
+    data = "S2_L2A_sample.nc", # The netCDF which will be converted into COGs
+    collection_id = "SENTINEL2_L2A_SAMPLE", # The Collection id we want to set
+    collection_url = "https://stac.eurac.edu/collections/", # The URL where the collection will be exposed
+    output_folder="SENTINEL2_L2A_SAMPLE_STAC"
 ).generate_stac()
 ```
 
@@ -42,7 +42,7 @@ import pystac
 import pystac_client
 import odc.stac
 
-item_path = "./S2_L2A_SAMPLE_STAC/items-json/S2_L2A_SAMPLE-20220630000000.json"
+item_path = "./SENTINEL2_L2A_SAMPLE_STAC/items/20220630000000.json"
 stac_api = pystac_client.stac_api_io.StacApiIO()
 stac_dict = json.loads(stac_api.read_text(item_path))
 item = stac_api.stac_object_from_dict(stac_dict)
