@@ -31,9 +31,7 @@ rs2stac = Raster2STAC(
     data = "S2_L2A_sample.nc",
     collection_id = "S2_L2A_SAMPLE",
     collection_url = "",
-    output_folder="S2_L2A_SAMPLE_STAC",
-    write_json_items=True,
-    output_format="csv"
+    output_folder="S2_L2A_SAMPLE_STAC"
 ).generate_stac()
 ```
 
