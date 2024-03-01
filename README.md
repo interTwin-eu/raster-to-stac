@@ -1,5 +1,6 @@
 # Raster-to-STAC  
-This package allows the creation of STAC Collection with Items and Assets starting from different kind of raster datasets.
+This component allows the creation of STAC Collection with Items and Assets starting from different kinds of raster datasets. It also allows the user to automatically upload the resulting files to an Amazon S3 Bucket, to make them publicly accessible and reachable worldwide. The goal is to make a dataset easily accessible, interoperable, and shareable.
+
 Depending on the requirements, two approaches can be taken:
 
 1. Via COGs
