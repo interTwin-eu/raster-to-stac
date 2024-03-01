@@ -42,18 +42,7 @@ from urllib.parse import urlparse, urlunparse
 
 
 _log = logging.getLogger(__name__)
-#_log.setLevel(logging.INFO)
 
-conf_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'conf.json')
-
-# loading confs from conf.json
-with open(conf_path, 'r') as f:
-    conf_data = json.load(f)
-
-# loadng AWS credentials/confs
-aws_access_key = conf_data["s3"]["aws_access_key"]
-aws_secret_key = conf_data["s3"]["aws_secret_key"]
-#aws_region    = conf_data["s3"]["aws_region"]
 
 DATACUBE_EXT_VERSION = "v1.0.0"
 
@@ -90,24 +79,24 @@ class Raster2STAC():
         verbose: bool = False,
             If True, enable verbose mode for detailed logging.
         s3_upload: bool = True,
-            If True, upload files to AWS S3 (S3 settings can be set on 'conf.json' file, see README.md).
-        bucket_name: str = conf_data["s3"]["bucket_name"],
+            If True, upload files to Amazon S3 Bucket.
+        bucket_name: str = None,
             Part of AWS S3 configuration: bucket name.
-        bucket_file_prefix: str = conf_data["s3"]["bucket_file_prefix"],
-             Part of AWS S3 configuration: Prefix for files in the S3 bucket.
-        aws_region: str = conf_data["s3"]["aws_region"],
+        bucket_file_prefix: str = None,
+             Part of AWS S3 configuration: prefix for files in the S3 bucket.
+        aws_region: str = None,
              Part of AWS S3 configuration: AWS region for S3.
         version: Optional[str] = None,
             Version of the STAC collection.
-        output_format: str = "json_full"
+        output_format: str = "csv"
             Output format for the STAC catalogs metadata files ("json_full" and "csv" formats are available)
             json_full: allows the items to be included in the same JSON file as collection metadata one, under 
             "features" dict
-            csv: the collection metadata file will be outputed as json without items and the items will be put
-            in a csv file, with one compact JSON data per-line, representing the item's metadata  
+            csv: the STAC Collection file will be outputed as json without items and the items will be put
+            in a csv file, with one compact JSON data per-line, representing the item's metadata.
         license: Optional[str] = None,
             License information about STAC collection and its assets.
-        write_json_items: bool = False,
+        write_json_items: bool = True,
             If True, write individual JSON files for each item. This is useful to check beautified jsons for each
             item while on "csv" output format mode
         sci_citation: Optional[str] = None
@@ -119,7 +108,7 @@ class Raster2STAC():
     def __init__(self,
                  data,
                  collection_id,
-                 collection_url,
+                 collection_url = None,
                  item_prefix: Optional[str] = "",
                  output_folder: Optional[str] = None,
                  output_file: Optional[str] = None,
@@ -131,14 +120,14 @@ class Raster2STAC():
                  links: Optional[list] = None,
                  stac_version="1.0.0",
                  verbose=False,
-                 s3_upload=True,
-                 bucket_name = conf_data["s3"]["bucket_name"],
-                 bucket_file_prefix = conf_data["s3"]["bucket_file_prefix"],
-                 aws_region = conf_data["s3"]["aws_region"],
+                 s3_upload=False,
+                 bucket_name = None,
+                 bucket_file_prefix = None,
+                 aws_region = None,
                  version = None,
-                 output_format="json_full",
+                 output_format="csv",
                  license = None,
-                 write_json_items = False,
+                 write_json_items = True,
                  sci_doi = None,
                  sci_citation=None
                 ):
@@ -424,7 +413,7 @@ class Raster2STAC():
             item.add_link(
                 pystac.Link(
                     pystac.RelType.SELF,
-                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/{time_str}",
+                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items/{item_id}",
                     media_type=pystac.MediaType.JSON,
                 )
             )
@@ -442,21 +431,21 @@ class Raster2STAC():
             item_dict["collection"] = self.collection_id
 
             if self.output_format == "json_full":
-                item_list.append(copy.deepcopy(item_dict)) # If we don't get a deep copy, the properties datetime gets overwritten in the next iteration of the loop, don't know why.
+                item_list.append(copy.deepcopy(item_dict)) # If we don't get a deep copy, the properties datetime gets overwritten in the next iteration of the loop.
             elif self.output_format == "csv":
                 item_oneline = json.dumps(item_dict, separators=(",", ":"), ensure_ascii=False)
 
                 output_path = Path(self.output_folder)
-                with open(f"{output_path}/items.csv", 'a+') as out_csv:
+                with open(f"{output_path}/inline_items.csv", 'a+') as out_csv:
                     out_csv.write(f"{item_oneline}\n")
 
 
                 if self.write_json_items:
-                    jsons_path = f"{output_path}/items-json/"
+                    jsons_path = f"{output_path}/items/"
                     if not os.path.exists(jsons_path):
                         os.mkdir(jsons_path)
 
-                    with open(f"{self.fix_path_slash(jsons_path)}{self.collection_id}-{item_id}.json", 'w+') as out_json:
+                    with open(f"{self.fix_path_slash(jsons_path)}{item_id}.json", 'w+') as out_json:
                         out_json.write(json.dumps(item_dict, indent=4))
             else:
                 pass # TODO: implement further formats here
