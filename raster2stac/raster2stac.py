@@ -53,6 +53,8 @@ from .rioxarray_stac import rioxarray_get_dataset_geom, rioxarray_get_projection
 _log = logging.getLogger(__name__)
 
 
+DATACUBE_EXT_VERSION = "v1.0.0"
+
 class Raster2STAC():
     """
     Raster2STAC Class - Converte dati raster nel formato STAC.
@@ -150,12 +152,13 @@ class Raster2STAC():
             f"https://stac-extensions.github.io/projection/{PROJECTION_EXT_VERSION}/schema.json", 
             f"https://stac-extensions.github.io/raster/{RASTER_EXT_VERSION}/schema.json",
             f"https://stac-extensions.github.io/eo/{EO_EXT_VERSION}/schema.json",
+            # f"https://stac-extensions.github.io/datacube/{DATACUBE_EXT_VERSION}/schema.json",
         ]
 
         if output_folder is not None:
             self.output_folder = output_folder
         else:
-            self.output_folder = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3]   
+            self.output_folder = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3]
 
         self.output_file = f"{self.collection_id}.json"
         
@@ -167,7 +170,7 @@ class Raster2STAC():
         self.aws_region = aws_region
         self.s3_upload = s3_upload
         self.s3_client = None
-        self.version = version 
+        self.version = version
         self.title = title
 
         if self.s3_upload:
@@ -529,6 +532,7 @@ class Raster2STAC():
         
         if self.sci_citation is not None or self.sci_doi is not None:
             self.extensions.append("https://stac-extensions.github.io/scientific/v1.0.0/schema.json")
+    
 
         extra_fields["summaries"] = eo_info
 
