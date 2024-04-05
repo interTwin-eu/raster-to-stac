@@ -1,14 +1,12 @@
 """
-Raster2STAC - Extract STAC format metadata from raster data 
+Raster2STAC - Generate STAC metadata from raster data 
 
 This module provides a class `Raster2STAC` for extracting from raster data, represented as an `xr.DataArray`
-or a file path which links to a local .nc file (that will be converted in `xr.DataArray`), 
-SpatioTemporal Asset Catalog (STAC) format metadata JSON files.
-This allows the output data to be ingested into Eurac's STAC FastApi
+or a file path to netCDF(s) file(s), SpatioTemporal Asset Catalog (STAC) format metadata JSON files.
 
 Authors: Mercurio Lorenzo, Eurac Research - Inst. for Earth Observation, Bolzano/Bozen IT
 Authors: Michele Claus, Eurac Research - Inst. for Earth Observation, Bolzano/Bozen IT
-Date: 2024-03-06
+Date: 2024-03-24
 """
 import sys
 import datetime 
@@ -99,6 +97,8 @@ class Raster2STAC():
             License information about STAC collection and its assets.
         sci_citation: Optional[str] = None
             Scientific citation(s) reference(s) about STAC collection.
+        write_collection_assets = False,
+            Include all assets in the STAC Collection, with unique keys.
     """
 
 
@@ -120,10 +120,13 @@ class Raster2STAC():
                  bucket_name = None,
                  bucket_file_prefix = None,
                  aws_region = None,
+                 aws_access_key = None,
+                 aws_secret_key = None,
                  version = None,
                  license = None,
                  sci_doi = None,
-                 sci_citation=None
+                 sci_citation=None,
+                 write_collection_assets=False
                 ):
         
         if ignore_warns == True:
@@ -148,6 +151,7 @@ class Raster2STAC():
         self.links = links
         self.stac_version = stac_version
         self.sci_doi = sci_doi
+        self.write_collection_assets = write_collection_assets
         self.extensions = [
             f"https://stac-extensions.github.io/projection/{PROJECTION_EXT_VERSION}/schema.json", 
             f"https://stac-extensions.github.io/raster/{RASTER_EXT_VERSION}/schema.json",
@@ -535,7 +539,7 @@ class Raster2STAC():
     
 
         extra_fields["summaries"] = eo_info
-
+        self.extensions.append("https://stac-extensions.github.io/datacube/v2.2.0/schema.json")
         extra_fields["stac_extensions"] = self.extensions
 
         cube_dimensons = {
@@ -672,8 +676,8 @@ class Raster2STAC():
         spatial_extents = []
         temporal_extents = []
 
-        item_list = []  # Create a list to store the items
-
+        # item_list = []  # Create a list to store the items
+        collection_assets = {}
         # Get the time dimension values
         time_values = self.data[self.T_DIM].values
         
@@ -765,11 +769,7 @@ class Raster2STAC():
                         self.properties.update({"eo:cloud_cover": int(cloudcover)})
 
                     eo_info["eo:bands"] = [band_dict]
-
-                    pystac_assets.append(
-                        (
-                            band, 
-                            pystac.Asset(
+                    asset = pystac.Asset(
                                 href=link_path, 
                                 media_type=self.media_type,
                                 extra_fields={
@@ -778,9 +778,16 @@ class Raster2STAC():
                                     **eo_info
                                 },
                                 roles=["data"],
-                            ),
+                            )
+                    pystac_assets.append(
+                        (
+                            band, 
+                            asset,
                         )
                     )
+                    if self.write_collection_assets:
+                        collection_assets[f"{item_id}_{band}"] = asset
+                        
             
             eo_info["eo:bands"] = eo_bands_list
 
@@ -906,7 +913,7 @@ class Raster2STAC():
             self.extensions.append("https://stac-extensions.github.io/scientific/v1.0.0/schema.json")
 
         extra_fields["summaries"] = eo_info
-
+        self.extensions.append("https://stac-extensions.github.io/datacube/v2.2.0/schema.json")
         extra_fields["stac_extensions"] = self.extensions
 
         cube_dimensons = {
@@ -935,13 +942,21 @@ class Raster2STAC():
         }
 
         extra_fields["cube:dimensions"] = cube_dimensons
-
-        self.stac_collection = pystac.collection.Collection(
-            id=self.collection_id,
-            description=self.description,
-            extent=pystac.Extent(spatial=s_ext, temporal=t_ext),
-            extra_fields=extra_fields,
-        )
+        if self.write_collection_assets:
+            self.stac_collection = pystac.collection.Collection(
+                id=self.collection_id,
+                description=self.description,
+                extent=pystac.Extent(spatial=s_ext, temporal=t_ext),
+                extra_fields=extra_fields,
+                assets = collection_assets
+            )
+        else:
+            self.stac_collection = pystac.collection.Collection(
+                id=self.collection_id,
+                description=self.description,
+                extent=pystac.Extent(spatial=s_ext, temporal=t_ext),
+                extra_fields=extra_fields
+            )
 
         
         self.stac_collection.add_link(
