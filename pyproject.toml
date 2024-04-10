@@ -1,10 +1,14 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = [
+      "setuptools>=61.0", "numpy", "pandas", "xarray",
+      "rioxarray", "pystac", "rio_stac", "boto3", "botocore",
+      "openeo[localprocessing]", "fsspec"
+      ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "raster2stac"
-version = "0.0.1"
+version = "0.0.3"
 authors = [
   { name="Michele Claus", email="michele.claus@eurac.edu" },
 ]

@@ -55,7 +55,7 @@ DATACUBE_EXT_VERSION = "v1.0.0"
 
 class Raster2STAC():
     """
-    Raster2STAC Class - Converte dati raster nel formato STAC.
+    Raster2STAC Class - Convert raster data format into STAC metadata.
 
     Args:
         data: str or xr.DataArray
