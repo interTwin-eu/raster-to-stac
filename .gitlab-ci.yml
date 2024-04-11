@@ -23,7 +23,7 @@ build_package:
 #   script:
 
 staging_testpypi:
-  stage: deploy
+  stage: package_deployment
   variables:
     TWINE_USERNAME: $STAGING_USERNAME
     TWINE_PASSWORD: $STAGING_TOKEN
@@ -34,7 +34,7 @@ staging_testpypi:
     - tags
 
 production_pypi:
-  stage: deploy
+  stage: package_deployment
   variables:
     TWINE_USERNAME: $PRODUCTION_USERNAME
     TWINE_PASSWORD: $PRODUCTION_TOKEN
