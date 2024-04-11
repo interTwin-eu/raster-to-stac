@@ -1,9 +1,9 @@
 """
+Create STAC Item from a rasterio dataset.
+
 Modified from https://github.com/developmentseed/rio-stac/blob/main/rio_stac/stac.py
 Using as main data model an xArray object, accessing the properties using rioxarray instead of rasterio
 """
-
-"""Create STAC Item from a rasterio dataset."""
 
 import datetime
 import math
@@ -15,7 +15,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy
 import pystac
 import rasterio
-import rioxarray
 import xarray as xr
 from pystac.utils import str_to_datetime
 from rasterio import transform, warp
@@ -147,7 +146,7 @@ def rioxarray_get_projection_info(
 
 
 def get_eobands_info(
-    src_dst: Union[DatasetReader, DatasetWriter, WarpedVRT, MemoryFile]
+    src_dst: Union[DatasetReader, DatasetWriter, WarpedVRT, MemoryFile],
 ) -> List:
     """Get eo:bands metadata.
 
@@ -253,7 +252,7 @@ def rioxarray_get_raster_info(  # noqa: C901
 
 
 def get_media_type(
-    src_dst: Union[DatasetReader, DatasetWriter, WarpedVRT, MemoryFile]
+    src_dst: Union[DatasetReader, DatasetWriter, WarpedVRT, MemoryFile],
 ) -> Optional[pystac.MediaType]:
     """Find MediaType for a raster dataset."""
     driver = src_dst.driver
@@ -357,7 +356,7 @@ def create_stac_item(
         else:
             src_dst = dataset
 
-        dataset_geom = get_dataset_geom(
+        dataset_geom = rioxarray_get_dataset_geom(
             src_dst,
             densify_pts=geom_densify_pts,
             precision=geom_precision,
@@ -385,7 +384,7 @@ def create_stac_item(
             properties.update(
                 {
                     f"proj:{name}": value
-                    for name, value in get_projection_info(src_dst).items()
+                    for name, value in rioxarray_get_projection_info(src_dst).items()
                 }
             )
 
@@ -397,7 +396,9 @@ def create_stac_item(
             )
 
             raster_info = {
-                "raster:bands": get_raster_info(dataset, max_size=raster_max_size)
+                "raster:bands": rioxarray_get_raster_info(
+                    dataset, max_size=raster_max_size
+                )
             }
 
         eo_info: Dict[str, List] = {}

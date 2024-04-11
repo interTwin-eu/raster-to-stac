@@ -1,5 +1,5 @@
 """
-Raster2STAC - Generate STAC metadata from raster data 
+Raster2STAC - Generate STAC metadata from raster data
 
 This module provides a class `Raster2STAC` for extracting from raster data, represented as an `xr.DataArray`
 or a file path to netCDF(s) file(s), SpatioTemporal Asset Catalog (STAC) format metadata JSON files.
@@ -8,22 +8,19 @@ Authors: Mercurio Lorenzo, Eurac Research - Inst. for Earth Observation, Bolzano
 Authors: Michele Claus, Eurac Research - Inst. for Earth Observation, Bolzano/Bozen IT
 Date: 2024-03-24
 """
-import copy
+
 import datetime
 import json
 import logging
 import os
-import sys
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Optional
 from urllib.parse import urlparse, urlunparse
 
 import boto3
 import botocore
 import dask
 import numpy as np
-import openeo_processes_dask
-import openeo_processes_dask.process_implementations.cubes._xr_interop
 import pandas as pd
 import pystac
 import rasterio
@@ -32,16 +29,25 @@ import xarray as xr
 from fsspec.implementations.local import LocalFileSystem
 from openeo.local import LocalConnection
 from pystac.utils import str_to_datetime
+
 # Import rio_stac methods
 # Import extension version
-from rio_stac.stac import (EO_EXT_VERSION, PROJECTION_EXT_VERSION,
-                           RASTER_EXT_VERSION, bbox_to_geom, get_dataset_geom,
-                           get_eobands_info, get_projection_info,
-                           get_raster_info)
+from rio_stac.stac import (
+    EO_EXT_VERSION,
+    PROJECTION_EXT_VERSION,
+    RASTER_EXT_VERSION,
+    bbox_to_geom,
+    get_dataset_geom,
+    get_eobands_info,
+    get_projection_info,
+    get_raster_info,
+)
 
-from .rioxarray_stac import (rioxarray_get_dataset_geom,
-                             rioxarray_get_projection_info,
-                             rioxarray_get_raster_info)
+from .rioxarray_stac import (
+    rioxarray_get_dataset_geom,
+    rioxarray_get_projection_info,
+    rioxarray_get_raster_info,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -123,7 +129,7 @@ class Raster2STAC:
         sci_citation=None,
         write_collection_assets=False,
     ):
-        if ignore_warns == True:
+        if ignore_warns:
             import warnings
 
             warnings.filterwarnings("ignore")
@@ -250,7 +256,7 @@ class Raster2STAC:
                 )
             if len(set(t_labels)) != 1:
                 raise ValueError(
-                    f"The provided netCDFs contain a different set of dates!"
+                    "The provided netCDFs contain a different set of dates!"
                 )
 
             so = dict(mode="rb", anon=True, default_fill_cache=False)
@@ -281,7 +287,7 @@ class Raster2STAC:
                         },
                         chunks={},
                     ).to_dataarray(dim="bands")
-                    IS_KERCHUNK = True
+                    # IS_KERCHUNK = True # UNUSED VARIABLE IS_KERCHUNK
                     datasets_list.append(self.data)
                     # Need to create one Item per time/netCDF
         self.data = xr.combine_by_coords(datasets_list, combine_attrs="drop_conflicts")
@@ -301,10 +307,10 @@ class Raster2STAC:
         spatial_extents = []
         temporal_extents = []
 
-        item_list = []  # Create a list to store the items
+        # item_list = []  # Create a list to store the items # unused variable
 
         # Get the time dimension values
-        time_values = self.data[self.T_DIM].values
+        # time_values = self.data[self.T_DIM].values # unused variable
 
         eo_info = {}
 
@@ -814,7 +820,8 @@ class Raster2STAC:
 
                     band_dict = get_eobands_info(src_dst)[0]
 
-                    if type(band_dict) == dict:
+                    # if type(band_dict) == dict:
+                    if isinstance(band_dict, dict):
                         del band_dict["name"]
                         band_dict["name"] = band_dict["description"]
                         del band_dict["description"]
