@@ -1,9 +1,9 @@
 """
+Create STAC Item from a rasterio dataset.
+
 Modified from https://github.com/developmentseed/rio-stac/blob/main/rio_stac/stac.py
 Using as main data model an xArray object, accessing the properties using rioxarray instead of rasterio
 """
-
-"""Create STAC Item from a rasterio dataset."""
 
 import datetime
 import math
@@ -16,10 +16,7 @@ import numpy
 import pystac
 import rasterio
 import xarray as xr
-import rioxarray
 from pystac.utils import str_to_datetime
-
-
 from rasterio import transform, warp
 from rasterio.features import bounds as feature_bounds
 from rasterio.io import DatasetReader, DatasetWriter, MemoryFile
@@ -78,7 +75,9 @@ def rioxarray_get_dataset_geom(
             }
 
         # 3. Reproject the geometry to "epsg:4326"
-        geom = warp.transform_geom(src_dst.rio.crs, EPSG_4326, geom, precision=precision)
+        geom = warp.transform_geom(
+            src_dst.rio.crs, EPSG_4326, geom, precision=precision
+        )
         bbox = feature_bounds(geom)
 
     else:
@@ -147,7 +146,7 @@ def rioxarray_get_projection_info(
 
 
 def get_eobands_info(
-    src_dst: Union[DatasetReader, DatasetWriter, WarpedVRT, MemoryFile]
+    src_dst: Union[DatasetReader, DatasetWriter, WarpedVRT, MemoryFile],
 ) -> List:
     """Get eo:bands metadata.
 
@@ -185,9 +184,7 @@ def _rioxarray_get_stats(arr: numpy.ndarray, **kwargs: Any) -> Dict:
             "minimum": float(arr.min()),
             "maximum": float(arr.max()),
             "stddev": float(arr.std()),
-            "valid_percent": float(numpy.count_nonzero(arr))
-            / float(arr.size)
-            * 100,
+            "valid_percent": float(numpy.count_nonzero(arr)) / float(arr.size) * 100,
         },
         "histogram": {
             "count": len(edges),
@@ -220,15 +217,15 @@ def rioxarray_get_raster_info(  # noqa: C901
                 height = math.ceil(width * ratio)
 
     meta: List[Dict] = []
-    
+
     # area_or_point = src_dst.tags().get("AREA_OR_POINT", "").lower()
-    
+
     # Missing `bits_per_sample` and `spatial_resolution`
     # It should contain only one band/variable
     # for band in src_dst.indexes:
     value = {
         "data_type": str(src_dst.dtype),
-        "scale": 1, # TODO: load scale and offset if present
+        "scale": 1,  # TODO: load scale and offset if present
         "offset": 0,
     }
     # if area_or_point:
@@ -255,7 +252,7 @@ def rioxarray_get_raster_info(  # noqa: C901
 
 
 def get_media_type(
-    src_dst: Union[DatasetReader, DatasetWriter, WarpedVRT, MemoryFile]
+    src_dst: Union[DatasetReader, DatasetWriter, WarpedVRT, MemoryFile],
 ) -> Optional[pystac.MediaType]:
     """Find MediaType for a raster dataset."""
     driver = src_dst.driver
@@ -359,7 +356,7 @@ def create_stac_item(
         else:
             src_dst = dataset
 
-        dataset_geom = get_dataset_geom(
+        dataset_geom = rioxarray_get_dataset_geom(
             src_dst,
             densify_pts=geom_densify_pts,
             precision=geom_precision,
@@ -387,7 +384,7 @@ def create_stac_item(
             properties.update(
                 {
                     f"proj:{name}": value
-                    for name, value in get_projection_info(src_dst).items()
+                    for name, value in rioxarray_get_projection_info(src_dst).items()
                 }
             )
 
@@ -399,7 +396,9 @@ def create_stac_item(
             )
 
             raster_info = {
-                "raster:bands": get_raster_info(dataset, max_size=raster_max_size)
+                "raster:bands": rioxarray_get_raster_info(
+                    dataset, max_size=raster_max_size
+                )
             }
 
         eo_info: Dict[str, List] = {}
