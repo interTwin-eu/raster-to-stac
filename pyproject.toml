@@ -27,6 +27,20 @@ classifiers = [
 ]
 keywords = ["STAC", "Metadata", "Cloud-Optimized GeoTIFFs", "Kerchunk", "NetCDF"]
 
+[project.optional-dependencies]
+dev = ["isort", "ruff"]
+
 [project.urls]
 Homepage = "https://gitlab.inf.unibz.it/earth_observation_public/raster-to-stac"
 Issues = "https://gitlab.inf.unibz.it/earth_observation_public/raster-to-stac/-/issues"
+
+[tool.isort]
+sections = [
+    "FUTURE", 
+    "STDLIB",
+    "THIRDPARTY",
+    "FIRSTPARTY",
+    "LOCALFOLDER"
+]
+
+[tool.ruff]

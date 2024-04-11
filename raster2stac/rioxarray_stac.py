@@ -15,11 +15,9 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy
 import pystac
 import rasterio
-import xarray as xr
 import rioxarray
+import xarray as xr
 from pystac.utils import str_to_datetime
-
-
 from rasterio import transform, warp
 from rasterio.features import bounds as feature_bounds
 from rasterio.io import DatasetReader, DatasetWriter, MemoryFile
@@ -78,7 +76,9 @@ def rioxarray_get_dataset_geom(
             }
 
         # 3. Reproject the geometry to "epsg:4326"
-        geom = warp.transform_geom(src_dst.rio.crs, EPSG_4326, geom, precision=precision)
+        geom = warp.transform_geom(
+            src_dst.rio.crs, EPSG_4326, geom, precision=precision
+        )
         bbox = feature_bounds(geom)
 
     else:
@@ -185,9 +185,7 @@ def _rioxarray_get_stats(arr: numpy.ndarray, **kwargs: Any) -> Dict:
             "minimum": float(arr.min()),
             "maximum": float(arr.max()),
             "stddev": float(arr.std()),
-            "valid_percent": float(numpy.count_nonzero(arr))
-            / float(arr.size)
-            * 100,
+            "valid_percent": float(numpy.count_nonzero(arr)) / float(arr.size) * 100,
         },
         "histogram": {
             "count": len(edges),
@@ -220,15 +218,15 @@ def rioxarray_get_raster_info(  # noqa: C901
                 height = math.ceil(width * ratio)
 
     meta: List[Dict] = []
-    
+
     # area_or_point = src_dst.tags().get("AREA_OR_POINT", "").lower()
-    
+
     # Missing `bits_per_sample` and `spatial_resolution`
     # It should contain only one band/variable
     # for band in src_dst.indexes:
     value = {
         "data_type": str(src_dst.dtype),
-        "scale": 1, # TODO: load scale and offset if present
+        "scale": 1,  # TODO: load scale and offset if present
         "offset": 0,
     }
     # if area_or_point:
