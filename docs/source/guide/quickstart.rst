@@ -21,13 +21,13 @@ Usage Examples
 Case 1: convert netCDF to COGs and create a STAC Collection with Items and Assets
 ---------------------------------------------------------------------------------
 
-# Step 1. Get a sample netCDF file:
+I. Get a sample netCDF file:
 
 .. code-block:: bash
 
     wget https://github.com/Open-EO/openeo-localprocessing-data/raw/main/sample_netcdf/S2_L2A_sample.nc
 
-# Step 2. Call raster2stac:
+II. Call raster2stac:
 
 .. code-block:: python
 
@@ -41,7 +41,7 @@ Case 1: convert netCDF to COGs and create a STAC Collection with Items and Asset
         ).generate_cog_stac()
     
 
-# Step 3: Reload the data via a STAC Item we just generated:
+III. Reload the data via a STAC Item we just generated:
 
 .. code-block:: python
 
@@ -78,7 +78,7 @@ Case 1: convert netCDF to COGs and create a STAC Collection with Items and Asset
 Case 2: create Kerchunk files from a list of netCDFs and create a STAC Collection with Items and Assets
 -------------------------------------------------------------------------------------------------------
 
-# Step 1. Get sample netCDF files:
+I. Get sample netCDF files:
 
 .. code-block:: bash
 
@@ -98,7 +98,7 @@ Case 2: create Kerchunk files from a list of netCDFs and create a STAC Collectio
                ["t2m_2002_crs.nc","sp_2002_crs.nc"]]
 
 
-# Step 2. Call raster2stac:
+II. Call raster2stac:
 
 .. code-block:: python
 
@@ -157,7 +157,7 @@ Case 2: create Kerchunk files from a list of netCDFs and create a STAC Collectio
     r2s.generate_kerchunk_stac()
 
 
-# Step 3: Reload the data via the STAC Items we just generated:
+III. Reload the data via the STAC Items we just generated:
 
 .. code-block:: python
 

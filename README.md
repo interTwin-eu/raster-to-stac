@@ -7,7 +7,7 @@ Depending on the requirements, two approaches can be taken:
 The first approach, will read the input dataset and write several Cloud Optimized Geotiffs to the local disk. One COG per time stamp and per variable/band in the netCDF will be generated. This might increase the overall memory required to store the data, but allows a high level of interoperability with third party libraries for reading and visualizing the data.
 
 2. Via Kerchunk
-The second approach tries to keep the original data as is, without the necessity to duplicate it in COGs. The sample use case that we will cover consist in netCDF files and for each of the a JSON Kerchunk file will be created. The Kerchunk files will be then read by raster2stac and a SATC Collection generated.
+The second approach tries to keep the original data as is, without the necessity to duplicate it in COGs. The sample use case that we will cover consist in netCDF files and for each of the a JSON Kerchunk file will be created. The Kerchunk files will be then read by raster2stac and a STAC Collection generated.
 
 ## Installation
 
@@ -123,7 +123,7 @@ r2s = Raster2STAC(
         },
         {
             "url": "http://www.eurac.edu",
-            "name": "Eurac EO",
+            "name": "EURAC - Institute for Earth Observation",
             "roles": [
                 "host"
             ]

@@ -21,8 +21,8 @@ interoperable and shareable, adhering to the core tenets of the FAIR principle.
 Main features
 -------------
 - Generates STAC Collection from CoGs, NetCDF and Kerchunk data formats, 
-- Loads well with downstream packages like odc.STAC
-- 
+- Uploads to data to cloud storage (e.g. Amazon S3),
+- Loads well with downstream packages like odc.stac
 - Released under the `MIT License`
 
 
@@ -32,7 +32,9 @@ User guide
 .. toctree::
    :maxdepth: 2
 
+   guide/installation.rst
    guide/quickstart.rst
+   guide/contributing.rst
 
 
 License
