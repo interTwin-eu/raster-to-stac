@@ -123,7 +123,7 @@ r2s = Raster2STAC(
         },
         {
             "url": "http://www.eurac.edu",
-            "name": "EURAC - Institute for Earth Observation",
+            "name": "Eurac Research - Institute for Earth Observation",
             "roles": [
                 "host"
             ]

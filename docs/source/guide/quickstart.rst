@@ -13,7 +13,7 @@ Depending on the user requirements and data formats, two approaches can be taken
 
 2. Kerchunk
    The second approach tries to keep the original data as is, without the necessity to duplicate it in COGs. The sample use case that we will cover consist in netCDF files and for each of the a JSON Kerchunk 
-   file will be created. The Kerchunk files will be then read by raster2stac and a SATC Collection generated.
+   file will be created. The Kerchunk files will be then read by raster2stac and a STAC Collection generated.
 
 
 Usage Examples
