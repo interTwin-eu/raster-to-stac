@@ -7,8 +7,8 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "raster2stac"
-copyright = "2024, Michele Claus"
-author = "Michele Claus"
+copyright = "2024, Michele Claus, Lorenzo Mercurio, Rufai Omowunmi Balogun"
+author = "Michele Claus, Lorenzo Mercurio, Rufai Omowunmi Balogun"
 release = "0.0.3"
 
 # -- General configuration ---------------------------------------------------
