@@ -72,7 +72,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "tiff",
-        type=int,
+        type=bool,
         help="Boolean if the dataset is in \
                         a TIFF format or not. Defaults to True",
     )
