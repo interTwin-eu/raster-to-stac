@@ -1,0 +1,46 @@
+[build-system]
+requires = [
+      "setuptools>=61.0", "numpy", "pandas", "xarray",
+      "rioxarray", "pystac", "rio_stac", "boto3", "botocore",
+      "openeo[localprocessing]", "fsspec"
+      ]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "raster2stac"
+version = "0.0.3"
+authors = [
+  { name="Michele Claus", email="michele.claus@eurac.edu" },
+]
+description = "Create valid STAC Collections, Items and Assets given already existing raster datasets"
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Information Analysis"
+]
+keywords = ["STAC", "Metadata", "Cloud-Optimized GeoTIFFs", "Kerchunk", "NetCDF"]
+
+[project.optional-dependencies]
+dev = ["isort", "ruff"]
+
+[project.urls]
+Homepage = "https://gitlab.inf.unibz.it/earth_observation_public/raster-to-stac"
+Issues = "https://gitlab.inf.unibz.it/earth_observation_public/raster-to-stac/-/issues"
+
+[tool.isort]
+sections = [
+    "FUTURE", 
+    "STDLIB",
+    "THIRDPARTY",
+    "FIRSTPARTY",
+    "LOCALFOLDER"
+]
+
+[tool.ruff]

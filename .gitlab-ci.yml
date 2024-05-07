@@ -1,0 +1,45 @@
+image: python:latest
+
+stages:
+  # - package_test
+  - package_build
+  - package_deployment
+
+before_script:
+  - python3 -m pip install --upgrade pip 
+
+build_package:
+  stage: package_build
+  script:
+    - python3 -m pip install --upgrade setuptools>=61.0
+    - python3 -m pip install --upgrade build
+    - python3 -m build
+  artifacts:
+    paths:
+      - dist/*
+  
+# build_documentation:
+#   stage: package_build
+#   script:
+
+staging_testpypi:
+  stage: package_deployment
+  variables:
+    TWINE_USERNAME: $STAGING_USERNAME
+    TWINE_PASSWORD: $STAGING_TOKEN
+  script:
+    - python3 -m pip install --upgrade twine
+    - twine upload --repository testpypi dist/*
+  only:
+    - tags
+
+production_pypi:
+  stage: package_deployment
+  variables:
+    TWINE_USERNAME: $PRODUCTION_USERNAME
+    TWINE_PASSWORD: $PRODUCTION_TOKEN
+  script:
+    - python3 -m pip install --upgrade twine
+    - twine upload dist/*
+  only:
+    - release

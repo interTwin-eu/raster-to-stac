@@ -1,12 +1,13 @@
 # Raster-to-STAC  
-This package allows the creation of STAC Collection with Items and Assets starting from different kind of raster datasets.
+This component allows the creation of STAC Collection with Items and Assets starting from different kinds of raster datasets. It also allows the user to automatically upload the resulting files to an Amazon S3 Bucket, to make them publicly accessible and reachable worldwide. The goal is to make a dataset easily accessible, interoperable, and shareable.
+
 Depending on the requirements, two approaches can be taken:
 
 1. Via COGs
 The first approach, will read the input dataset and write several Cloud Optimized Geotiffs to the local disk. One COG per time stamp and per variable/band in the netCDF will be generated. This might increase the overall memory required to store the data, but allows a high level of interoperability with third party libraries for reading and visualizing the data.
 
 2. Via Kerchunk
-The second approach tries to keep the original data as is, without the necessity to duplicate it in COGs. The sample use case that we will cover consist in netCDF files and for each of the a JSON Kerchunk file will be created. The Kerchunk files will be then read by raster2stac and a SATC Collection generated.
+The second approach tries to keep the original data as is, without the necessity to duplicate it in COGs. The sample use case that we will cover consist in netCDF files and for each of the a JSON Kerchunk file will be created. The Kerchunk files will be then read by raster2stac and a STAC Collection generated.
 
 ## Installation
 
@@ -122,7 +123,7 @@ r2s = Raster2STAC(
         },
         {
             "url": "http://www.eurac.edu",
-            "name": "Eurac EO",
+            "name": "Eurac Research - Institute for Earth Observation",
             "roles": [
                 "host"
             ]
@@ -191,6 +192,7 @@ print(data)
 >     NCO:      netCDF Operators version 5.1.9 (Homepage = http://nco.sf.net, C...
 
 ```
+
 ## License
 
 This project is distributed with MIT license - see 'LICENSE' for details.
