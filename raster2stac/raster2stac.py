@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 import pystac
 import rasterio
+
 import ujson
 import xarray as xr
 from fsspec.implementations.local import LocalFileSystem
@@ -711,13 +712,18 @@ class Raster2STAC:
             self.upload_s3(output_path)
 
     def generate_cog_stac(self):
-        if isinstance(self.data, xr.DataArray) or isinstance(self.data, str):
-            if isinstance(self.data, xr.DataArray):
+        if isinstance(self.data, xr.Dataset) or isinstance(self.data, str):
+            if isinstance(self.data, xr.Dataset):
                 pass
             elif isinstance(self.data, str):
                 source_path = os.path.dirname(self.data)
-                local_conn = LocalConnection(source_path)
-                self.data = local_conn.load_collection(self.data).execute()
+                # local_conn = LocalConnection(source_path)
+                # self.data = local_conn.load_collection(self.data).execute()
+                self.data = xr.open_dataset(source_path)
+
+        # store datasets in  a placeholder
+        self.data_ds = self.data.copy(deep=True)
+        self.data = self.data.to_array(dim="bands")
 
         self.output_format = "COG"
         self.media_type = (
@@ -784,9 +790,14 @@ class Raster2STAC:
                 path = os.path.join(time_slice_dir, curr_file_name)
 
                 # Write the result to the GeoTIFF file
-                self.data.loc[{self.T_DIM: t, self.B_DIM: band}].to_dataset(
-                    name=band
-                ).rio.to_raster(raster_path=path, driver="COG")
+                # self.data.loc[{self.T_DIM: t, self.B_DIM: band}].to_dataset(
+                #     name=band
+                # ).rio.to_raster(raster_path=path, driver="COG")
+                cog_file = self.data_ds.loc[{self.T_DIM: t}][band]
+                cog_file.attrs["long_name"] = f"{band}"
+                cog_file.to_dataset(name=band).rio.to_raster(
+                    raster_path=path, driver="COG"
+                )
 
                 link_path = path
 
@@ -838,6 +849,7 @@ class Raster2STAC:
                         self.properties.update({"eo:cloud_cover": int(cloudcover)})
 
                     eo_info["eo:bands"] = [band_dict]
+
                     asset = pystac.Asset(
                         href=link_path,
                         media_type=self.media_type,
