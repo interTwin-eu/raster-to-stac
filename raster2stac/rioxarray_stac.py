@@ -223,18 +223,22 @@ def rioxarray_get_raster_info(  # noqa: C901
     # Missing `bits_per_sample` and `spatial_resolution`
     # It should contain only one band/variable
     # for band in src_dst.indexes:
-    if src_dst.attrs["scale_factor"] or src_dst.attrs["add_offset"]:
+    if src_dst.attrs["scale_factor"]:
         value = {
             "data_type": str(src_dst.dtype),
             "scale": src_dst.attrs["scale_factor"],
-            "offset": src_dst.attrs["add_offset"],
         }
     else:
         value = {
             "data_type": str(src_dst.dtype),
             "scale": 1,
-            "offset": 0,
         }
+    
+    # add offset
+    if src_dst.attrs["add_offset"]:
+        value["offset"] = src_dst.attrs["add_offset"]
+    else:
+        value["offset"] = 0
     # if area_or_point:
     #     value["sampling"] = area_or_point
 

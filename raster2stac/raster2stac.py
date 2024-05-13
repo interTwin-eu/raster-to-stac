@@ -717,13 +717,13 @@ class Raster2STAC:
                 pass
             elif isinstance(self.data, str):
                 source_path = os.path.dirname(self.data)
-                # local_conn = LocalConnection(source_path)
-                # self.data = local_conn.load_collection(self.data).execute()
-                self.data = xr.open_dataset(source_path)
+                local_conn = LocalConnection(source_path)
+                self.data = local_conn.load_collection(self.data).execute()
+                self.data = self.data.to_dataset(dim=self.B_DIM)
 
         # store datasets in  a placeholder
         self.data_ds = self.data.copy(deep=True)
-        self.data = self.data.to_array(dim="bands")
+        self.data = self.data.to_dataarray(dim="bands")
 
         self.output_format = "COG"
         self.media_type = (
