@@ -233,7 +233,7 @@ def rioxarray_get_raster_info(  # noqa: C901
             "data_type": str(src_dst.dtype),
             "scale": 1,
         }
-    
+
     # add offset
     if src_dst.attrs["add_offset"]:
         value["offset"] = src_dst.attrs["add_offset"]
