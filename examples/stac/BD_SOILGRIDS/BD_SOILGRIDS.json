@@ -1,0 +1,141 @@
+{
+    "type": "Collection",
+    "id": "BD_SOILGRIDS",
+    "stac_version": "1.0.0",
+    "description": "SoilGrids is a system for global digital soil mapping that uses state-of-the-art machine learning methods to map the spatial distribution of soil properties across the globe. SoilGrids prediction models are fitted using over 230 000 soil profile observations from the WoSIS database and a series of environmental covariates. Covariates were selected from a pool of over 400 environmental layers from Earth observation derived products and other environmental information including climate, land cover and terrain morphology. The outputs of SoilGrids are global soil property maps at six standard depth intervals (according to the GlobalSoilMap IUSS working group and its specifications) at a spatial resolution of 250 meters.",
+    "links": [
+        {
+            "rel": "items",
+            "href": "http://10.8.244.74:8082/collections/BD_SOILGRIDS/items",
+            "type": "application/json"
+        },
+        {
+            "rel": "parent",
+            "href": "http://10.8.244.74:8082",
+            "type": "application/json"
+        },
+        {
+            "rel": "self",
+            "href": "http://10.8.244.74:8082/collections/BD_SOILGRIDS",
+            "type": "application/json"
+        },
+        {
+            "rel": "root",
+            "href": "http://10.8.244.74:8082",
+            "type": "application/json"
+        }
+    ],
+    "keywords": [
+        "soil",
+        "buik density",
+        "soilgrids",
+        "WoSIS"
+    ],
+    "providers": [
+        {
+            "url": "https://www.isric.org/about/vision-mission",
+            "name": "ISRIC World Soil Information",
+            "roles": [
+                "producer"
+            ]
+        },
+        {
+            "url": "http://www.eurac.edu",
+            "name": "Eurac Research - Institute for Earth Observation",
+            "roles": [
+                "host"
+            ]
+        }
+    ],
+    "title": "SoliGrids Bulk Density data for the European Alps",
+    "sci:citation": "Poggio, L., de Sousa, L. M., Batjes, N. H., Heuvelink, G. B. M., Kempen, B., Ribeiro, E., and Rossiter, D.: SoilGrids 2.0: producing soil information for the globe with quantified spatial uncertainty, SOIL, 7, 217\u2013240, https://doi.org/10.5194/soil-7-217-2021, 2021.",
+    "sci:doi": "10.5194/soil-7-217-2021",
+    "summaries": {
+        "eo:bands": [
+            {
+                "name": "bd_sl1"
+            },
+            {
+                "name": "bd_sl2"
+            },
+            {
+                "name": "bd_sl3"
+            },
+            {
+                "name": "bd_sl4"
+            },
+            {
+                "name": "bd_sl5"
+            },
+            {
+                "name": "bd_sl6"
+            }
+        ]
+    },
+    "stac_extensions": [
+        "https://stac-extensions.github.io/projection/v1.1.0/schema.json",
+        "https://stac-extensions.github.io/raster/v1.1.0/schema.json",
+        "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+        "https://stac-extensions.github.io/scientific/v1.0.0/schema.json",
+        "https://stac-extensions.github.io/datacube/v2.2.0/schema.json"
+    ],
+    "cube:dimensions": {
+        "x": {
+            "axis": "x",
+            "type": "spatial",
+            "extent": [
+                3.1262644099676398,
+                16.88249239996764
+            ],
+            "reference_system": 4326
+        },
+        "y": {
+            "axis": "y",
+            "type": "spatial",
+            "extent": [
+                43.61605581817635,
+                50.03062888817635
+            ],
+            "reference_system": 4326
+        },
+        "time": {
+            "type": "temporal",
+            "extent": [
+                "2024-03-01",
+                "2024-03-01"
+            ]
+        },
+        "bands": {
+            "type": "bands",
+            "values": [
+                "bd_sl1",
+                "bd_sl2",
+                "bd_sl3",
+                "bd_sl4",
+                "bd_sl5",
+                "bd_sl6"
+            ]
+        }
+    },
+    "extent": {
+        "spatial": {
+            "bbox": [
+                [
+                    3.12522274496764,
+                    43.615014153176354,
+                    16.88353406496764,
+                    50.031670553176355
+                ]
+            ]
+        },
+        "temporal": {
+            "interval": [
+                [
+                    "2024-03-01T00:00:00Z",
+                    "2024-03-01T00:00:00Z"
+                ]
+            ]
+        }
+    },
+    "license": "CC-BY-4.0"
+}
