@@ -136,6 +136,7 @@ class Raster2STAC:
             warnings.filterwarnings("ignore")
 
         self.data = data
+        self.data_ds = None
         self.X_DIM = None
         self.Y_DIM = None
         self.T_DIM = None
@@ -712,18 +713,18 @@ class Raster2STAC:
             self.upload_s3(output_path)
 
     def generate_cog_stac(self):
-        if isinstance(self.data, xr.Dataset) or isinstance(self.data, str):
+        if isinstance(self.data, xr.Dataset) or isinstance(self.data, xr.DataArray) or isinstance(self.data, str):
             if isinstance(self.data, xr.Dataset):
+                # store datasets in  a placeholder
+                self.data_ds = self.data.copy(deep=True)
+                self.data = self.data.to_dataarray(dim="bands")
+            elif isinstance(self.data, xr.DataArray):
                 pass
             elif isinstance(self.data, str):
                 source_path = os.path.dirname(self.data)
                 local_conn = LocalConnection(source_path)
                 self.data = local_conn.load_collection(self.data).execute()
-                self.data = self.data.to_dataset(dim=self.B_DIM)
-
-        # store datasets in  a placeholder
-        self.data_ds = self.data.copy(deep=True)
-        self.data = self.data.to_dataarray(dim="bands")
+                self.data_ds = self.data.to_dataset(dim=self.B_DIM)
 
         self.output_format = "COG"
         self.media_type = (
@@ -790,14 +791,16 @@ class Raster2STAC:
                 path = os.path.join(time_slice_dir, curr_file_name)
 
                 # Write the result to the GeoTIFF file
-                # self.data.loc[{self.T_DIM: t, self.B_DIM: band}].to_dataset(
-                #     name=band
-                # ).rio.to_raster(raster_path=path, driver="COG")
-                cog_file = self.data_ds.loc[{self.T_DIM: t}][band]
-                cog_file.attrs["long_name"] = f"{band}"
-                cog_file.to_dataset(name=band).rio.to_raster(
-                    raster_path=path, driver="COG"
-                )
+                if isinstance(self.data, xr.DataArray):
+                    self.data.loc[{self.T_DIM: t, self.B_DIM: band}].to_dataset(
+                        name=band
+                        ).rio.to_raster(raster_path=path, driver="COG")
+                else:
+                    cog_file = self.data_ds.loc[{self.T_DIM: t}][band]
+                    cog_file.attrs["long_name"] = f"{band}"
+                    cog_file.to_dataset(name=band).rio.to_raster(
+                        raster_path=path, driver="COG"
+                        )
 
                 link_path = path
 

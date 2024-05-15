@@ -251,7 +251,7 @@ def rioxarray_get_raster_info(  # noqa: C901
         elif numpy.isneginf(src_dst.rio.nodata):
             value["nodata"] = "-inf"
         else:
-            value["nodata"] = src_dst.rio.nodata
+            value["nodata"] = (src_dst.rio.nodata).astype((src_dst.dtype)[:2])
     # TODO: check if we can get the unit
     # if src_dst.rio.units[0] is not None:
     #     value["unit"] = src_dst.rio.units[0]
