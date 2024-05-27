@@ -1019,7 +1019,9 @@ class Raster2STAC:
                     float(self.data.coords[self.X_DIM].min()),
                     float(self.data.coords[self.X_DIM].max()),
                 ],
-                "reference_system": int(self.data.rio.crs.to_string().split(",")[-1][1:-3]),
+                "reference_system": int(
+                    self.data.rio.crs.to_string().split(",")[-1][1:-3]
+                ),
             },
             self.Y_DIM: {
                 "axis": "y",
@@ -1028,7 +1030,9 @@ class Raster2STAC:
                     float(self.data.coords[self.Y_DIM].min()),
                     float(self.data.coords[self.Y_DIM].max()),
                 ],
-                "reference_system": int(self.data.rio.crs.to_string().split(",")[-1][1:-3]),
+                "reference_system": int(
+                    self.data.rio.crs.to_string().split(",")[-1][1:-3]
+                ),
             },
             self.T_DIM: {
                 "type": "temporal",
