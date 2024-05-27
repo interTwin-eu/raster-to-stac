@@ -1020,7 +1020,7 @@ class Raster2STAC:
                     float(self.data.coords[self.X_DIM].max()),
                 ],
                 "reference_system": int(
-                    self.data.rio.crs.to_string().split(",")[-1][1:-3]
+                    self.data.rio.crs.to_string().split(":")[1]
                 ),
             },
             self.Y_DIM: {
@@ -1031,7 +1031,7 @@ class Raster2STAC:
                     float(self.data.coords[self.Y_DIM].max()),
                 ],
                 "reference_system": int(
-                    self.data.rio.crs.to_string().split(",")[-1][1:-3]
+                    self.data.rio.crs.to_string().split(":")[1]
                 ),
             },
             self.T_DIM: {
