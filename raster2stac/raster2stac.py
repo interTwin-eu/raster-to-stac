@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 import pystac
 import rasterio
+
 import ujson
 import xarray as xr
 from fsspec.implementations.local import LocalFileSystem
@@ -135,6 +136,7 @@ class Raster2STAC:
             warnings.filterwarnings("ignore")
 
         self.data = data
+        self.data_ds = None
         self.X_DIM = None
         self.Y_DIM = None
         self.T_DIM = None
@@ -157,7 +159,6 @@ class Raster2STAC:
             f"https://stac-extensions.github.io/projection/{PROJECTION_EXT_VERSION}/schema.json",
             f"https://stac-extensions.github.io/raster/{RASTER_EXT_VERSION}/schema.json",
             f"https://stac-extensions.github.io/eo/{EO_EXT_VERSION}/schema.json",
-            # f"https://stac-extensions.github.io/datacube/{DATACUBE_EXT_VERSION}/schema.json",
         ]
 
         if output_folder is not None:
@@ -306,8 +307,6 @@ class Raster2STAC:
 
         spatial_extents = []
         temporal_extents = []
-
-        # item_list = []  # Create a list to store the items # unused variable
 
         # Get the time dimension values
         # time_values = self.data[self.T_DIM].values # unused variable
@@ -517,9 +516,6 @@ class Raster2STAC:
             # item_dict = item.to_dict()
             item_dict["collection"] = self.collection_id
 
-            # if self.output_format == "json_full":
-            # item_list.append(copy.deepcopy(item_dict)) # If we don't get a deep copy, the properties datetime gets overwritten in the next iteration of the loop, don't know why.
-            # elif self.output_format == "csv":
             item_oneline = json.dumps(
                 item_dict, separators=(",", ":"), ensure_ascii=False
             )
@@ -693,9 +689,6 @@ class Raster2STAC:
         if self.links is not None:
             stac_collection_dict["links"] = stac_collection_dict["links"] + self.links
 
-        # if self.output_format == "json_full":
-        # stac_collection_dict["features"] = item_list  # Replace the "features" field with the list of items
-
         json_str = json.dumps(stac_collection_dict, indent=4)
 
         # printing metadata.json test output file
@@ -711,18 +704,24 @@ class Raster2STAC:
             self.upload_s3(output_path)
 
     def generate_cog_stac(self):
-        if isinstance(self.data, xr.DataArray) or isinstance(self.data, str):
-            if isinstance(self.data, xr.DataArray):
-                pass
-            elif isinstance(self.data, str):
-                source_path = os.path.dirname(self.data)
-                local_conn = LocalConnection(source_path)
-                self.data = local_conn.load_collection(self.data).execute()
+        if isinstance(self.data, xr.Dataset):
+            # store datasets in  a placeholder
+            self.data_ds = self.data.copy(deep=True)
+            self.data = self.data.to_dataarray(dim="bands")
+        elif isinstance(self.data, xr.DataArray):
+            pass
+        elif isinstance(self.data, str):
+            source_path = os.path.dirname(self.data)
+            local_conn = LocalConnection(source_path)
+            self.data = local_conn.load_collection(self.data).execute()
+            self.data_ds = self.data.to_dataset(dim=self.B_DIM)
+        else:
+            raise Exception("Please provide a path to a valid file or an xArray DataArray or Dataset object!")
 
         self.output_format = "COG"
         self.media_type = (
             pystac.MediaType.COG
-        )  # we could also use rio_stac.stac.get_media_type)
+        )
         self.X_DIM = self.data.openeo.x_dim
         self.Y_DIM = self.data.openeo.y_dim
         self.T_DIM = self.data.openeo.temporal_dims[0]
@@ -734,7 +733,6 @@ class Raster2STAC:
         spatial_extents = []
         temporal_extents = []
 
-        # item_list = []  # Create a list to store the items
         collection_assets = {}
         # Get the time dimension values
         time_values = self.data[self.T_DIM].values
@@ -784,9 +782,16 @@ class Raster2STAC:
                 path = os.path.join(time_slice_dir, curr_file_name)
 
                 # Write the result to the GeoTIFF file
-                self.data.loc[{self.T_DIM: t, self.B_DIM: band}].to_dataset(
-                    name=band
-                ).rio.to_raster(raster_path=path, driver="COG")
+                if isinstance(self.data, xr.DataArray):
+                    self.data.loc[{self.T_DIM: t, self.B_DIM: band}].to_dataset(
+                        name=band
+                    ).rio.to_raster(raster_path=path, driver="COG")
+                else:
+                    cog_file = self.data_ds.loc[{self.T_DIM: t}][band]
+                    cog_file.attrs["long_name"] = f"{band}"
+                    cog_file.to_dataset(name=band).rio.to_raster(
+                        raster_path=path, driver="COG"
+                    )
 
                 link_path = path
 
@@ -838,6 +843,7 @@ class Raster2STAC:
                         self.properties.update({"eo:cloud_cover": int(cloudcover)})
 
                     eo_info["eo:bands"] = [band_dict]
+
                     asset = pystac.Asset(
                         href=link_path,
                         media_type=self.media_type,
@@ -858,18 +864,15 @@ class Raster2STAC:
             minx, miny, maxx, maxy = zip(*bboxes)
             bbox = [min(minx), min(miny), max(maxx), max(maxy)]
 
-            # metadata_item_path = f"{self.fix_path_slash(time_slice_dir)}metadata.json"
-
             # item
             item = pystac.Item(
                 id=item_id,
                 geometry=bbox_to_geom(bbox),
                 bbox=bbox,
-                collection=None,  # self.collection_id, #FIXME: da errore se lo si decommenta
+                collection=None,
                 stac_extensions=self.extensions,
                 datetime=str_to_datetime(str(t)),
                 properties=self.properties,
-                # href=metadata_item_path # no more needed after removing JSON for every item approach
             )
 
             # Calculate the item's spatial extent and add it to the list
@@ -929,7 +932,6 @@ class Raster2STAC:
             item_dict["collection"] = self.collection_id
 
             # if self.output_format == "json_full":
-            # item_list.append(copy.deepcopy(item_dict)) # If we don't get a deep copy, the properties datetime gets overwritten in the next iteration of the loop.
             # elif self.output_format == "csv":
             item_oneline = json.dumps(
                 item_dict, separators=(",", ":"), ensure_ascii=False
@@ -1000,7 +1002,9 @@ class Raster2STAC:
                     float(self.data.coords[self.X_DIM].min()),
                     float(self.data.coords[self.X_DIM].max()),
                 ],
-                "reference_system": int((self.data.rio.crs.to_string()).split(":")[1]),
+                "reference_system": int(
+                    self.data.rio.crs.to_string().split(":")[1]
+                ),
             },
             self.Y_DIM: {
                 "axis": "y",
@@ -1009,7 +1013,9 @@ class Raster2STAC:
                     float(self.data.coords[self.Y_DIM].min()),
                     float(self.data.coords[self.Y_DIM].max()),
                 ],
-                "reference_system": int((self.data.rio.crs.to_string()).split(":")[1]),
+                "reference_system": int(
+                    self.data.rio.crs.to_string().split(":")[1]
+                ),
             },
             self.T_DIM: {
                 "type": "temporal",
@@ -1111,9 +1117,6 @@ class Raster2STAC:
 
         if self.links is not None:
             stac_collection_dict["links"] = stac_collection_dict["links"] + self.links
-
-        # if self.output_format == "json_full":
-        # stac_collection_dict["features"] = item_list  # Replace the "features" field with the list of items
 
         json_str = json.dumps(stac_collection_dict, indent=4)
 

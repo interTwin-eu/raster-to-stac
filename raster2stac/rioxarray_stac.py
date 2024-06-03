@@ -223,11 +223,22 @@ def rioxarray_get_raster_info(  # noqa: C901
     # Missing `bits_per_sample` and `spatial_resolution`
     # It should contain only one band/variable
     # for band in src_dst.indexes:
-    value = {
-        "data_type": str(src_dst.dtype),
-        "scale": 1,  # TODO: load scale and offset if present
-        "offset": 0,
-    }
+    if src_dst.attrs["scale_factor"]:
+        value = {
+            "data_type": str(src_dst.dtype),
+            "scale": src_dst.attrs["scale_factor"],
+        }
+    else:
+        value = {
+            "data_type": str(src_dst.dtype),
+            "scale": 1,
+        }
+
+    # add offset
+    if src_dst.attrs["add_offset"]:
+        value["offset"] = src_dst.attrs["add_offset"]
+    else:
+        value["offset"] = 0
     # if area_or_point:
     #     value["sampling"] = area_or_point
 
@@ -240,7 +251,10 @@ def rioxarray_get_raster_info(  # noqa: C901
         elif numpy.isneginf(src_dst.rio.nodata):
             value["nodata"] = "-inf"
         else:
-            value["nodata"] = src_dst.rio.nodata
+            value["nodata"] = (src_dst.rio.nodata).astype((src_dst.dtype)[:2])
+    elif src_dst.attrs.get("_FillValue"):
+        value["nodata"] = src_dst.attrs.get("_FillValue")
+
     # TODO: check if we can get the unit
     # if src_dst.rio.units[0] is not None:
     #     value["unit"] = src_dst.rio.units[0]
