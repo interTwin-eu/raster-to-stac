@@ -5,7 +5,7 @@ from raster2stac._version import __version__
 from raster2stac.raster2stac import Raster2STAC
 
 
-def client_version() -> str:
+def get_version() -> str:
     try:
         import importlib.metadata
 
