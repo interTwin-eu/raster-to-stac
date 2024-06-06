@@ -10,6 +10,10 @@ before_script:
 
 build_package:
   stage: package_build
+  before_script:
+    - CURRENT_VERSION = $(git describe --tags --abbrev=0)
+    - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/pyproject.toml
+    - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/raster2stac/_version.py
   script:
     - python3 -m pip install --upgrade setuptools>=61.0
     - python3 -m pip install --upgrade build
