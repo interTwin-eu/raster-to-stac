@@ -1,18 +1,17 @@
 import os
+import sys
+import json
 from pathlib import Path
 import tempfile
-from rio_cogeo.cogeo import cog_translate
-from rio_cogeo.profiles import cog_profiles
-
-import pytest
-from unittest.mock import patch, MagicMock
-
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-import sys
-import json
+import pytest
+from unittest.mock import patch, MagicMock
+
+from rio_cogeo.cogeo import cog_translate
+from rio_cogeo.profiles import cog_profiles
 
 sys.path.append("/home/rbalogun/raster-to-stac/")
 from raster2stac import Raster2STAC

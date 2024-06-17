@@ -18,7 +18,7 @@ test_package:
   stage: package_test
   script:
     - python3 -m pip install --upgrade pytest
-    - pytest tests/*
+    - pytest tests/
 
 build_package:
   stage: package_build
