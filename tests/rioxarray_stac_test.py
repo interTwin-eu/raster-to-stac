@@ -17,6 +17,7 @@ from raster2stac.rioxarray_stac import (
     get_media_type,
 )
 
+from tests.raster2stac_test import r2s_sample_data_array
 
 @pytest.fixture
 def sample_data_array():
