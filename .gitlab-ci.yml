@@ -1,21 +1,19 @@
 image: python:latest
+before_script:
+  - CURRENT_VERSION=$(git describe --tags --abbrev=0)
+  - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/pyproject.toml
+  - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/raster2stac/_version.py
+  - python3 -m pip install --upgrade pip
+  - pip install . 
 
 stages:
   - package_test
   - package_build
   - package_deployment
 
-before_script:
-  - python3 -m pip install --upgrade pip
-
-
 test_package:
   stage: package_test
   before_script:
-    - CURRENT_VERSION=$(git describe --tags --abbrev=0)
-    - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/pyproject.toml
-    - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/raster2stac/_version.py
-    - pip install .
     - python3 -m pip install --upgrade pytest
   script:
     - pytest tests/*
