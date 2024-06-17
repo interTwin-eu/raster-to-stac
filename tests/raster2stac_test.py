@@ -121,21 +121,21 @@ def r2s_multi_band_cog_file(r2s_sample_dataset, tmp_path_factory):
         Iterator[tempfile.TemporaryDirectory]: temporary directory pointing to the COG file
     """
 
-    # config = dict(
-    #     GDAL_NUM_THREADS="ALL_CPUS",
-    #     GDAL_TIFF_INTERNAL_MASK=True,
-    #     GDAL_TIFF_OVR_BLOCKSIZE="64",
-    # )
+    config = dict(
+        GDAL_NUM_THREADS="ALL_CPUS",
+        GDAL_TIFF_INTERNAL_MASK=True,
+        GDAL_TIFF_OVR_BLOCKSIZE="64",
+    )
 
     r2s_tiff_path = tmp_path_factory.mktemp("RAST") / "raster2stac_multiband.tif"
-    # r2s_cog_path = tmp_path_factory.mktemp("COG") / "raster2stac_cog.tif"
+    r2s_cog_path = tmp_path_factory.mktemp("COG") / "raster2stac_cog.tif"
     sample_data = r2s_sample_dataset.isel(time=0)
     sample_data.rio.to_raster(r2s_tiff_path)
 
-    # cog_translate(
-    #     r2s_tiff_path, r2s_cog_path, cog_profiles.get("deflate"), config=config
-    # )
-    return r2s_tiff_path
+    cog_translate(
+        r2s_tiff_path, r2s_cog_path, cog_profiles.get("deflate"), config=config
+    )
+    return r2s_cog_path
 
 
 @pytest.fixture

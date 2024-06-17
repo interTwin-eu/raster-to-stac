@@ -11,6 +11,7 @@ requires = [
     "openeo[localprocessing]",
     "fsspec",
     "ujson",
+    "rio-cogeo",
     "setuptools>=61.0",
 ]
 build-backend = "setuptools.build_meta"
