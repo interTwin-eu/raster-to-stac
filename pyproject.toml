@@ -1,18 +1,28 @@
 [build-system]
 requires = [
-      "setuptools>=61.0", "numpy", "pandas", "xarray",
-      "rioxarray", "pystac", "rio_stac", "boto3", "botocore",
-      "openeo[localprocessing]", "fsspec", "ujson", "rio_cogeo"
-      ]
+    "setuptools>=61.0",
+    "numpy",
+    "pandas",
+    "xarray",
+    "rioxarray",
+    "pystac",
+    "rio_stac",
+    "boto3",
+    "botocore",
+    "openeo[localprocessing]",
+    "fsspec",
+    "ujson",
+    "rio_cogeo"
+]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "raster2stac"
 version = "SEMANTIC_VERSION"
 authors = [
-  { name="Michele Claus", email="michele.claus@eurac.edu", 
-    name="Lorenzo Mercurio", email="lorenzo.mercurio@eurac.edu",
-    name="Rufai Omowunmi Balogun", email="rbalogun@eurac.edu"},
+    { name = "Michele Claus", email = "michele.claus@eurac.edu" },
+    { name = "Lorenzo Mercurio", email = "lorenzo.mercurio@eurac.edu" },
+    { name = "Rufai Omowunmi Balogun", email = "rbalogun@eurac.edu" }
 ]
 description = "Create valid STAC Collections, Items and Assets given already existing raster datasets"
 readme = "README.md"
