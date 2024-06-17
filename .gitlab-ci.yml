@@ -15,7 +15,6 @@ test_package:
     - CURRENT_VERSION=$(git describe --tags --abbrev=0)
     - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/pyproject.toml
     - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/raster2stac/_version.py
-    - pip install -e
     - python3 -m pip install --upgrade pytest
   script:
     - pytest tests/*
