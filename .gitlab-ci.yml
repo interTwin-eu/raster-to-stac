@@ -15,8 +15,8 @@ test_package:
     - python3 -m pip install --upgrade pytest
   script:
     - pytest tests/*
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  # rules:
+  #   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
 build_package:
   stage: package_build
