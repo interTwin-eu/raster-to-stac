@@ -12,9 +12,8 @@ before_script:
 test_package:
   stage: package_test
   before_script: 
+    - python3 -m setup.py install 
     - python3 -m pip install --upgrade pytest
-    - python3 -m pip install --upgrade rio_cogeo 
-    - python3 -m pip install --upgrade numpy
   script:
     - pytest tests/*
   # rules:
