@@ -1,10 +1,13 @@
 image: python:latest
+
 before_script:
+  - python3 -m venv venv
+  - source venv/bin/activate
   - CURRENT_VERSION=$(git describe --tags --abbrev=0)
   - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/pyproject.toml
   - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/raster2stac/_version.py
   - python3 -m pip install --upgrade pip
-  - pip install . 
+  - pip install .
 
 stages:
   - package_test
@@ -13,12 +16,9 @@ stages:
 
 test_package:
   stage: package_test
-  before_script:
-    - python3 -m pip install --upgrade pytest
   script:
+    - python3 -m pip install --upgrade pytest
     - pytest tests/*
-  # rules:
-  #   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
 build_package:
   stage: package_build
@@ -29,10 +29,6 @@ build_package:
   artifacts:
     paths:
       - dist/*
-  
-# build_documentation:
-#   stage: package_build
-#   script:
 
 staging_testpypi:
   stage: package_deployment
