@@ -10,7 +10,9 @@ build-backend = "setuptools.build_meta"
 name = "raster2stac"
 version = "SEMANTIC_VERSION"
 authors = [
-  { name="Michele Claus", email="michele.claus@eurac.edu" },
+  { name="Michele Claus", email="michele.claus@eurac.edu", 
+    name="Lorenzo Mercurio", email="lorenzo.mercurio@eurac.edu",
+    name="Rufai Omowunmi Balogun", email="rbalogun@eurac.edu"},
 ]
 description = "Create valid STAC Collections, Items and Assets given already existing raster datasets"
 readme = "README.md"
