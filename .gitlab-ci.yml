@@ -1,12 +1,22 @@
 image: python:latest
 
 stages:
-  # - package_test
+  - package_test
   - package_build
   - package_deployment
 
 before_script:
-  - python3 -m pip install --upgrade pip 
+  - python3 -m pip install --upgrade pip
+
+
+test_package:
+  stage: package_test
+  before_script: 
+    - python3 -m pip install --upgrade pytest
+  script:
+    - pytest tests/*
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
 build_package:
   stage: package_build
