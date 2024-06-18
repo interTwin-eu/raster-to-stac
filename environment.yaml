@@ -1,4 +1,4 @@
-name: smodex
+name: raster2stac
 channels:
   - conda-forge
   - defaults
