@@ -9,7 +9,10 @@ stages:
 setup:
   stage: environment_setup
   script: 
-    - bash setup_conda.sh
+    - conda init bash
+    - source ~/.bashrc
+    - conda env create -f environment.yaml
+    - conda activate raster2stac
   artifacts:
     paths:
       - ~/.conda
@@ -26,6 +29,7 @@ build_package:
     - CURRENT_VERSION=$(git describe --tags --abbrev=0)
     - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/pyproject.toml
     - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/raster2stac/_version.py
+    - conda activate raster2stac
     - python3 -m build
   artifacts:
     paths:
