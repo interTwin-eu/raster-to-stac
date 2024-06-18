@@ -21,12 +21,12 @@ dependencies:
   - pip:
     - boto3
     - rio-cogeo
-    - openeo-processes-dask=2024.5.3
-    - pystac-client=0.8.2
-    - openeo=0.29.0
-    - openeo-pg-parser-networkx=2024.5.0
-    - rio-stac=0.9.0
+    - openeo-processes-dask
+    - pystac-client
+    - openeo
+    - openeo-pg-parser-networkx
+    - rio-stac
     - build
     - setuptools>=61.0
     - twine
-    - stac_validator=3.3.2
+    - stac_validator
