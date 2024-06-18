@@ -21,7 +21,7 @@ dependencies:
   - pip:
     - boto3
     - rio-cogeo
-    - openeo-processes-dask
+    - openeo-processes-dask[implementations]
     - pystac-client
     - openeo
     - openeo-pg-parser-networkx
