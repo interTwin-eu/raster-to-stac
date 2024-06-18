@@ -1,6 +1,7 @@
 image: continuumio/miniconda3
 
 before_script:
+  - conda init 
   - conda env create -f environment.yaml
   - conda activate raster2stac
 stages:
