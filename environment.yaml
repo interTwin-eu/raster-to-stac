@@ -20,7 +20,7 @@ dependencies:
   - pip=24.0
   - pip:
     - boto3
-    - rio-cogeo=5.3.0
+    - rio-cogeo
     - openeo-processes-dask=2024.5.3
     - pystac-client=0.8.2
     - openeo=0.29.0
