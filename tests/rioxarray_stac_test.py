@@ -5,8 +5,6 @@ import xarray as xr
 import pytest
 import rasterio
 
-sys.path.append("/home/rbalogun/raster-to-stac/")
-
 from raster2stac.rioxarray_stac import (
     bbox_to_geom,
     rioxarray_get_dataset_geom,

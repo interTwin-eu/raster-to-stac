@@ -13,7 +13,6 @@ from unittest.mock import patch, MagicMock
 from rio_cogeo.cogeo import cog_translate
 from rio_cogeo.profiles import cog_profiles
 
-sys.path.append("/home/rbalogun/raster-to-stac/")
 from raster2stac import Raster2STAC
 from stac_validator import stac_validator
 
