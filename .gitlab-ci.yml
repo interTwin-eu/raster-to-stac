@@ -1,18 +1,23 @@
 image: continuumio/miniconda3
 
-before_script:
-  - conda init bash 
-  - source ~/.bashrc
-  - conda env create -f environment.yaml
-  - conda activate raster2stac
 stages:
+  - environment_setup
   - package_test
   - package_build
   - package_deployment
 
+setup:
+  stage: environment_setup
+  script: 
+    - bash setup_conda.sh
+  artifacts:
+    paths:
+      - ~/.conda
+
 test_package:
   stage: package_test
   script:
+    - conda activate raster2stac
     - pytest tests/
 
 build_package:
