@@ -1,7 +1,7 @@
-image: python:latest
+image: continuumio/miniconda3
 
 before_script:
-  - conda env create -f environment.yaml
+  - conda env create -f environment.yaml 
 
 stages:
   - package_test
