@@ -18,9 +18,7 @@ test_package:
   stage: package_test
   script:
     - python3 -m pip install --upgrade pytest
-    - python3 -m pip uninstall gdal
     - pip install numpy
-    - pip install GDAL==$(gdal-config --version) --global-option=build_ext --global-option="-I/usr/include/gdal"
     - pytest tests/
 
 build_package:
