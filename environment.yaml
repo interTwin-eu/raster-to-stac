@@ -1,0 +1,32 @@
+name: smodex
+channels:
+  - conda-forge
+  - defaults
+dependencies: 
+  - numpy=1.26.4
+  - pandas=2.2.2
+  - geopandas=0.14.4
+  - dask-geopandas=0.3.1
+  - xarray=2024.5.0
+  - rioxarray=0.15.5
+  - stac_validator=3.3.2
+  - rasterio=1.3.10
+  - boto3=1.32.124
+  - botocore=1.34.124
+  - dask=2024.5.2
+  - dask-geopandas=0.3.1
+  - pystac=1.10.1
+  - ujson=5.10.0
+  - fsspec=2024.6.0
+  - pytest=8.2.2
+  - pip=24.0
+  - pip: 
+    - rio-cogeo=5.3.0
+    - openeo-processes-dask=2024.5.3
+    - pystac-client=0.8.2
+    - openeo=0.29.0
+    - openeo-pg-parser-networkx=2024.5.0
+    - rio-stac=0.9.0
+    - build
+    - setuptools>=61.0
+    - twine

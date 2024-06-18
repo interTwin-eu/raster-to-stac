@@ -5,7 +5,7 @@ requires = [
     "xarray",
     "rioxarray",
     "pystac",
-    "rio_stac",
+    "rio-stac",
     "boto3",
     "botocore",
     "openeo[localprocessing]",
