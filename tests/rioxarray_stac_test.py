@@ -49,14 +49,14 @@ def test_bbox_to_geom():
     assert geom == expected_geom
 
 
-def test_rioxarray_get_dataset_geom(r2s_sample_data_array):
-    geom_info = rioxarray_get_dataset_geom(r2s_sample_data_array)
+def test_rioxarray_get_dataset_geom(sample_data_array):
+    geom_info = rioxarray_get_dataset_geom(sample_data_array)
     assert "bbox" in geom_info
     assert "footprint" in geom_info
 
 
-def test_rioxarray_get_projection_info(r2s_sample_data_array):
-    projection_info = rioxarray_get_projection_info(r2s_sample_data_array)
+def test_rioxarray_get_projection_info(sample_data_array):
+    projection_info = rioxarray_get_projection_info(sample_data_array)
     assert "epsg" in projection_info
     assert projection_info["epsg"] == 4326
 
@@ -69,8 +69,8 @@ def test_get_eobands_info():
         assert len(eo_bands) == 3
 
 
-def test_rioxarray_get_stats(r2s_sample_data_array):
-    stats = _rioxarray_get_stats(r2s_sample_data_array)
+def test_rioxarray_get_stats(sample_data_array):
+    stats = _rioxarray_get_stats(sample_data_array)
     assert "statistics" in stats
     assert "histogram" in stats
 
