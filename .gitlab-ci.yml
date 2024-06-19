@@ -21,7 +21,6 @@ build_package:
     - CURRENT_VERSION=${CI_COMMIT_TAG:-"$CI_COMMIT_SHORT_SHA"}
     - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/pyproject.toml
     - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/raster2stac/_version.py
-    - conda activate raster2stac
     - python3 -m build
   artifacts:
     paths:
