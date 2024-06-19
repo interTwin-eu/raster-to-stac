@@ -13,9 +13,6 @@ setup:
     - source ~/.bashrc
     - conda env create -f environment.yaml
     - conda activate raster2stac
-  artifacts:
-    paths:
-      - ~/.conda
 
 test_package:
   stage: package_test
