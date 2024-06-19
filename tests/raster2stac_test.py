@@ -284,9 +284,6 @@ def test_generate_stac(request, test_data):
             assert stac.message[0]["valid_stac"]
 
 
-# TODO: mock EURAC-EO AWS S3 Bucket
-
-
 @patch("boto3.client")
 def test_upload_s3(mock_boto_client, r2s_sample_data_array):
     with tempfile.TemporaryDirectory() as tmpdir:
