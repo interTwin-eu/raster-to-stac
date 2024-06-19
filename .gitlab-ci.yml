@@ -17,8 +17,8 @@ test_package:
 build_package:
   stage: package_build
   script:
-    # - CURRENT_VERSION=$(git describe --tags --abbrev=0)
-    - CURRENT_VERSION=${CI_COMMIT_TAG:-"$CI_COMMIT_SHORT_SHA"}
+    - CURRENT_VERSION=$(git describe --abbrev=0)
+    # - CURRENT_VERSION=${CI_COMMIT_TAG:-"$CI_COMMIT_SHORT_SHA"}
     - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/pyproject.toml
     - sed -i "s/SEMANTIC_VERSION/$CURRENT_VERSION/" ${CI_PROJECT_DIR}/raster2stac/_version.py
     - python3 -m pip install --upgrade setuptools>=61.0
