@@ -54,7 +54,6 @@ def r2s_sample_data_array() -> xr.DataArray:
     )
 
     # Add temporal dimension
-    sample_ds = sample_ds.drop_vars("band").squeeze("band")
     sample_ds = sample_ds.expand_dims(t=pd.date_range("2022-01-01", periods=1), axis=0)
 
     # Add spatial attributes
@@ -74,19 +73,14 @@ def r2s_sample_dataset() -> xr.Dataset:
         xr.Dataset: sample xr.Dataset
     """
     np.random.seed(42)
-    data_one = np.random.rand(25, 25)
-    data_two = np.random.rand(25, 25)
-    lat = np.linspace(32, 45, 25)
-    lon = np.linspace(52, 60, 25)
-
     sample_dataset = xr.Dataset(
         {
-            "raster2stac_dataset_band1": (("lat", "lon"), data_one),
-            "raster2stac_dataset_band2": (("lat", "lon"), data_two),
+            "raster2stac_dataset_band1": (("y", "x"), np.random.rand(25, 25)),
+            "raster2stac_dataset_band2": (("y", "x"), np.random.rand(25, 25)),
         },
         coords={
-            "lat": lat,
-            "lon": lon,
+            "y": np.linspace(32, 45, 25),
+            "x": np.linspace(52, 60, 25),
         },
         attrs={
             "description": "sample xarray Dataset fixture for testing Raster2STAC",
@@ -95,11 +89,12 @@ def r2s_sample_dataset() -> xr.Dataset:
             "add_offset": 0.0,
         },
     )
+
     sample_dataset = sample_dataset.expand_dims(dim={"time": ["2024-06-06"]}, axis=0)
+
     # add spatial attributes
     ds = sample_dataset.rio.write_crs("EPSG:4326")
-    ds = ds.rio.set_spatial_dims(x_dim="lon", y_dim="lat")
-    ds = ds.rename_dims({"lon": "x", "lat": "y"})
+    ds = ds.rio.set_spatial_dims(x_dim="x", y_dim="y")
     return ds
 
 
@@ -163,7 +158,7 @@ def test_raster2stac_init(r2s_sample_data_array):
     r2s = Raster2STAC(
         data=r2s_sample_data_array,
         collection_id="R2S_TEST_COLLECTION",
-        collection_url="http://10.8.244.74:8082/collections/",  # TODO: create a mock up for this url,
+        collection_url="https://10.8.244.74:8082/collections/",  # TODO: create a mock up for this url,
         item_prefix="R2S_TEST",
         output_folder=out_path,  # TODO: use a temporary directory
         description="Test Collection generated for the Raster2STAC library intended for testing/validating the functionalities of the modules and functions",
@@ -172,12 +167,12 @@ def test_raster2stac_init(r2s_sample_data_array):
         keywords=["test", "stac", "collection", "validation"],
         providers=[
             {
-                "url": "http://www.eurac.edu",
+                "url": "https://www.eurac.edu",
                 "name": "Eurac Research - Institute for Earth Observation",
                 "roles": ["producer"],
             },
             {
-                "url": "http://www.eurac.edu",
+                "url": "https://www.eurac.edu",
                 "name": "Eurac Research - Institute for Earth Observation",
                 "roles": ["host"],
             },
@@ -193,12 +188,12 @@ def test_raster2stac_init(r2s_sample_data_array):
     assert r2s.output_folder is out_path
     assert r2s.providers == [
         {
-            "url": "http://www.eurac.edu",
+            "url": "https://www.eurac.edu",
             "name": "Eurac Research - Institute for Earth Observation",
             "roles": ["producer"],
         },
         {
-            "url": "http://www.eurac.edu",
+            "url": "https://www.eurac.edu",
             "name": "Eurac Research - Institute for Earth Observation",
             "roles": ["host"],
         },
@@ -242,7 +237,7 @@ def test_generate_stac(request, test_data):
         r2s = Raster2STAC(
             data=input_data,
             collection_id="R2S_TEST_COLLECTION",
-            collection_url="http://10.8.244.74:8082/collections/",  # TODO: create a mock up for this URL
+            collection_url="https://10.8.244.74:8082/collections/",  # TODO: create a mock up for this URL
             item_prefix="R2S_TEST",
             output_folder=out_path,  # TODO: use a temporary directory
             description="Test Collection generated for the Raster2STAC library intended for testing/validating the functionalities of the modules and functions",
@@ -251,12 +246,12 @@ def test_generate_stac(request, test_data):
             keywords=["test", "stac", "collection", "validation"],
             providers=[
                 {
-                    "url": "http://www.eurac.edu",
+                    "url": "https://www.eurac.edu",
                     "name": "Eurac Research - Institute for Earth Observation",
                     "roles": ["producer"],
                 },
                 {
-                    "url": "http://www.eurac.edu",
+                    "url": "https://www.eurac.edu",
                     "name": "Eurac Research - Institute for Earth Observation",
                     "roles": ["host"],
                 },
@@ -296,7 +291,7 @@ def test_upload_s3(mock_boto_client, r2s_sample_data_array):
     r2s = Raster2STAC(
         data=r2s_sample_data_array,
         collection_id="S3_COLLECTION",
-        collection_url="http://10.8.244.74:8082/collections/",
+        collection_url="https://10.8.244.74:8082/collections/",
         output_folder=out_path,
         description="Test  Collection for uploading to S3 bucket",
         title="S3 Collection Upload",
@@ -304,12 +299,12 @@ def test_upload_s3(mock_boto_client, r2s_sample_data_array):
         keywords=["s3", "bucket", "upload"],
         providers=[
             {
-                "url": "http://www.eurac.edu",
+                "url": "https://www.eurac.edu",
                 "name": "Eurac Research - Institute for Earth Observation",
                 "roles": ["producer"],
             },
             {
-                "url": "http://www.eurac.edu",
+                "url": "https://www.eurac.edu",
                 "name": "Eurac Research - Institute for Earth Observation",
                 "roles": ["host"],
             },
