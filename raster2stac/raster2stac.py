@@ -716,12 +716,12 @@ class Raster2STAC:
             self.data = local_conn.load_collection(self.data).execute()
             self.data_ds = self.data.to_dataset(dim=self.B_DIM)
         else:
-            raise Exception("Please provide a path to a valid file or an xArray DataArray or Dataset object!")
+            raise Exception(
+                "Please provide a path to a valid file or an xArray DataArray or Dataset object!"
+            )
 
         self.output_format = "COG"
-        self.media_type = (
-            pystac.MediaType.COG
-        )
+        self.media_type = pystac.MediaType.COG
         self.X_DIM = self.data.openeo.x_dim
         self.Y_DIM = self.data.openeo.y_dim
         self.T_DIM = self.data.openeo.temporal_dims[0]
@@ -885,7 +885,6 @@ class Raster2STAC:
 
             for key, asset in pystac_assets:
                 item.add_asset(key=key, asset=asset)
-
             item.validate()
 
             item.add_link(
@@ -1002,9 +1001,7 @@ class Raster2STAC:
                     float(self.data.coords[self.X_DIM].min()),
                     float(self.data.coords[self.X_DIM].max()),
                 ],
-                "reference_system": int(
-                    self.data.rio.crs.to_string().split(":")[1]
-                ),
+                "reference_system": int(self.data.rio.crs.to_string().split(":")[1]),
             },
             self.Y_DIM: {
                 "axis": "y",
@@ -1013,9 +1010,7 @@ class Raster2STAC:
                     float(self.data.coords[self.Y_DIM].min()),
                     float(self.data.coords[self.Y_DIM].max()),
                 ],
-                "reference_system": int(
-                    self.data.rio.crs.to_string().split(":")[1]
-                ),
+                "reference_system": int(self.data.rio.crs.to_string().split(":")[1]),
             },
             self.T_DIM: {
                 "type": "temporal",
