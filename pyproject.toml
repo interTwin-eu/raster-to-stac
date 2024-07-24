@@ -8,7 +8,7 @@ requires = [
     "rio-stac",
     "boto3",
     "botocore",
-    "openeo-pg-parser-networkx==2024.4.0",
+    "openeo-pg-parser-networkx<=2024.4.0",
     "openeo[localprocessing]",
     "fsspec",
     "ujson",
