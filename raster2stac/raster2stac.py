@@ -714,7 +714,6 @@ class Raster2STAC:
             source_path = os.path.dirname(self.data)
             local_conn = LocalConnection(source_path)
             self.data = local_conn.load_collection(self.data).execute()
-            self.data_ds = self.data.to_dataset(dim=self.B_DIM)
         else:
             raise Exception(
                 "Please provide a path to a valid file or an xArray DataArray or Dataset object!"
@@ -729,6 +728,9 @@ class Raster2STAC:
         _log.debug(
             f"Extracted label dimensions from input are:\nx dimension:{self.X_DIM}\ny dimension:{self.Y_DIM}\nbands dimension:{self.B_DIM}\ntemporal dimension:{self.T_DIM}"
         )
+
+        if self.data_ds is None:
+            self.data_ds = self.data.to_dataset(dim=self.B_DIM)
 
         spatial_extents = []
         temporal_extents = []

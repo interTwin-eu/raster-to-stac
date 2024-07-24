@@ -13,12 +13,28 @@ requires = [
     "ujson",
     "rio-cogeo",
     "setuptools>=61.0",
+    "dask"
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["raster2stac"]
 
 [project]
 name = "raster2stac"
 version = "SEMANTIC_VERSION"
+dependencies = [
+    "kerchunk",
+    "openeo-pg-parser-networkx==2024.4.0",
+    "openeo-processes-dask[implementations]",
+    "rio-stac",
+    "boto3",
+    "netcdf4==1.6.5",
+    "h5netcdf",
+    "h5py",
+    "ujson",
+    "openeo"
+]
 authors = [
     { name = "Michele Claus", email = "michele.claus@eurac.edu" },
     { name = "Lorenzo Mercurio", email = "lorenzo.mercurio@eurac.edu" },
@@ -26,7 +42,7 @@ authors = [
 ]
 description = "Create valid STAC Collections, Items and Assets given already existing raster datasets"
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",

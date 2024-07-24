@@ -23,9 +23,9 @@ dependencies:
     - boto3
     - rio-cogeo
     - openeo-processes-dask[implementations]
+    - openeo-pg-parser-networkx<=2024.4.0
     - pystac-client
     - openeo
-    - openeo-pg-parser-networkx
     - rio-stac
     - build
     - setuptools>=61.0
