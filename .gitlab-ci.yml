@@ -47,4 +47,4 @@ production_pypi:
     - python3 -m pip install --upgrade twine
     - twine upload dist/*
   only:
-    - release_^(\d+\.)?(\d+\.)?(\*|\d+)$
+    - /^release_(\d+\.)?(\d+\.)?(\*|\d+)$/
