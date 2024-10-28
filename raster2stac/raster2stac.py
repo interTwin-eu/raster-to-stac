@@ -6,13 +6,13 @@ or a file path to netCDF(s) file(s), SpatioTemporal Asset Catalog (STAC) format 
 
 Authors: Mercurio Lorenzo, Eurac Research - Inst. for Earth Observation, Bolzano/Bozen IT
 Authors: Michele Claus, Eurac Research - Inst. for Earth Observation, Bolzano/Bozen IT
-Date: 2024-03-24
 """
 
 import datetime
 import json
 import logging
 import os
+from copy import copy
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse, urlunparse
@@ -53,7 +53,7 @@ from .rioxarray_stac import (
 _log = logging.getLogger(__name__)
 
 
-DATACUBE_EXT_VERSION = "v1.0.0"
+DATACUBE_EXT_VERSION = "v2.2.0"
 
 
 class Raster2STAC:
@@ -141,7 +141,7 @@ class Raster2STAC:
         self.Y_DIM = None
         self.T_DIM = None
         self.B_DIM = None
-        self.output_format = None
+        self.OTHER_DIMS = None
         self.media_type = None
 
         self.properties = {}  # additional properties to add in the item
@@ -159,6 +159,7 @@ class Raster2STAC:
             f"https://stac-extensions.github.io/projection/{PROJECTION_EXT_VERSION}/schema.json",
             f"https://stac-extensions.github.io/raster/{RASTER_EXT_VERSION}/schema.json",
             f"https://stac-extensions.github.io/eo/{EO_EXT_VERSION}/schema.json",
+            f"https://stac-extensions.github.io/datacube/{DATACUBE_EXT_VERSION}/schema.json"
         ]
 
         if output_folder is not None:
@@ -188,10 +189,6 @@ class Raster2STAC:
                 aws_access_key_id=aws_access_key,
                 aws_secret_access_key=aws_secret_key,
             )  # region_name=aws_region,
-        # available_output_formats = ["csv","json_full"]
-        # if output_format not in available_output_formats:
-        # raise ValueError(f"output_format can be set to one of {available_output_formats}")
-        # self.output_format = output_format
         self.license = license
         self.sci_citation = sci_citation
 
@@ -302,7 +299,6 @@ class Raster2STAC:
             f"Extracted label dimensions from input are:\nx dimension:{self.X_DIM}\ny dimension:{self.Y_DIM}\nbands dimension:{self.B_DIM}\ntemporal dimension:{self.T_DIM}"
         )
 
-        self.output_format = "KERCHUNK"
         self.media_type = pystac.MediaType.JSON
 
         spatial_extents = []
@@ -572,9 +568,6 @@ class Raster2STAC:
             )
 
         extra_fields["summaries"] = eo_info
-        self.extensions.append(
-            "https://stac-extensions.github.io/datacube/v2.2.0/schema.json"
-        )
         extra_fields["stac_extensions"] = self.extensions
 
         cube_dimensons = {
@@ -703,6 +696,440 @@ class Raster2STAC:
             )
             self.upload_s3(output_path)
 
+    def generate_netcdf_stac(self):
+
+        # resetting CSV file
+        open(f"{Path(self.output_folder)}/inline_items.csv", "w+")
+        collection_assets = {}
+        spatial_extents = []
+        temporal_extents = []
+        netcdf_list = copy(self.data)
+        # Read the list of netCDFs
+        for same_time_netcdfs in netcdf_list:
+            t_labels = []
+            to_combine = []
+            to_combine_ds = []
+            for source_nc in same_time_netcdfs:
+                source_path = os.path.dirname(source_nc)
+                # local_conn = LocalConnection(source_path)
+                # tmp = local_conn.load_collection(source_nc).execute()
+                tmp_ds = xr.open_dataset(source_nc,decode_coords="all",chunks={})
+                tmp = tmp_ds.to_dataarray(dim="bands")
+                to_combine.append(tmp)
+                to_combine_ds.append(tmp_ds)
+                t_labels.append(tuple(tmp[tmp.openeo.temporal_dims[0]].values))
+            t_steps = [len(x) for x in t_labels]
+            if len(set(t_steps)) != 1:
+                raise ValueError(
+                    f"The provided netCDFs contain a different number of dates! {same_time_netcdfs}"
+                )
+            if len(set(t_labels)) != 1:
+                raise ValueError(
+                    "The provided netCDFs contain a different set of dates!"
+                )
+            self.data = xr.combine_by_coords(to_combine, combine_attrs="drop_conflicts")
+            self.data_ds = xr.combine_by_coords(to_combine_ds, combine_attrs="drop_conflicts")
+            self.X_DIM = self.data.openeo.x_dim
+            self.Y_DIM = self.data.openeo.y_dim
+            self.T_DIM = self.data.openeo.temporal_dims[0]
+            self.B_DIM = self.data.openeo.band_dims[0]
+            self.B_DIMS = self.data.openeo.band_dims
+            self.OTHER_DIMS = self.data.openeo.other_dims
+            _log.debug(
+                f"Extracted label dimensions from input are:\nx dimension:{self.X_DIM}\ny dimension:{self.Y_DIM}\nbands dimension:{self.B_DIM}\ntemporal dimension:{self.T_DIM}\nother dimensions:{self.OTHER_DIMS}"
+            )
+
+            self.media_type = pystac.MediaType.NETCDF
+
+            eo_info = {}
+            time_ranges = []
+            bands_data = {}
+
+            _log.debug("Cycling all netcdfs")
+            # Loop over the netcdf files
+            for source_nc in same_time_netcdfs:
+                source_path = os.path.dirname(source_nc)
+                local_conn = LocalConnection(source_path)
+                band_data = local_conn.load_collection(source_nc).execute()
+                bands_data[source_nc] = band_data
+                time_ranges.append(band_data[self.T_DIM].values)
+
+                # Now we can create one STAC Item for this time range
+
+                start_datetime = np.min(time_ranges)
+                end_datetime = np.max(time_ranges)
+
+                # Convert the time value to a datetime object
+                # Format the timestamp as a string to use in the file name
+                start_datetime_str = pd.Timestamp(start_datetime).strftime("%Y%m%d%H%M%S")
+                end_datetime_str = pd.Timestamp(end_datetime).strftime("%Y%m%d%H%M%S")
+
+                _log.debug(
+                    f"Extracted temporal extrema for this time range: {start_datetime_str} {end_datetime_str}"
+                )
+
+                item_id = f"{f'{self.item_prefix}_' if self.item_prefix != '' else ''}{start_datetime_str}_{end_datetime_str}"
+
+                # Create a unique directory for each time slice
+                time_slice_dir = os.path.join(
+                    self.output_folder, f"{start_datetime_str}_{end_datetime_str}"
+                )
+
+                Path(time_slice_dir).mkdir(parents=True, exist_ok=True)
+
+                # Get the band name (you may need to adjust this part based on your data)
+                bands = self.data[self.B_DIM].values
+
+                pystac_assets = []
+
+                # Cycling all bands/variables
+                _log.debug("Cycling all netcdfs")
+                eo_bands_list = []
+                for b_d in bands_data:
+                    bands = bands_data[b_d][self.B_DIM].values
+                    _log.debug(f"b: {bands}")
+                    link_path = b_d
+                    if self.s3_upload:
+                        # Uploading file to s3
+                        _log.debug(
+                            f"Uploading {b_d} to {self.fix_path_slash(self.bucket_file_prefix)}{os.path.basename(b_d)}"
+                        )
+                        self.upload_s3(b_d)
+
+                        link_path = f"https://{self.bucket_name}.{self.aws_region}.amazonaws.com/{self.fix_path_slash(self.bucket_file_prefix)}{os.path.basename(b_d)}"
+                    _log.debug(f"b: {link_path}")
+
+                    bboxes = []
+
+                    # Create an asset dictionary for this time slice
+                    # Get BBOX and Footprint
+                    _log.debug(bands_data[b_d].rio.crs)
+                    _log.debug(bands_data[b_d].rio.bounds())
+
+                    dataset_geom = rioxarray_get_dataset_geom(
+                        bands_data[b_d], densify_pts=0, precision=-1
+                    )
+                    bboxes.append(dataset_geom["bbox"])
+
+                    proj_info = {
+                        f"proj:{name}": value
+                        for name, value in rioxarray_get_projection_info(
+                            bands_data[b_d]
+                        ).items()
+                    }
+
+                    # raster_info = {
+                    #     "raster:bands": rioxarray_get_raster_info(
+                    #         bands_data[b_d], max_size=1024
+                    #     )
+                    # }
+
+                    # band_dict = {"name": band}
+
+                    # eo_bands_list.append(band_dict)
+
+                    # eo_info["eo:bands"] = [band_dict]
+                    asset = pystac.Asset(
+                                href=link_path,
+                                media_type=self.media_type,
+                                extra_fields={**proj_info},
+                                roles=["data"],
+                            )
+                    asset_name = Path(b_d).stem
+                    pystac_assets.append(
+                        (
+                            asset_name,
+                            asset,
+                        )
+                    )
+                    if self.write_collection_assets:
+                        collection_assets[f"{asset_name}"] = asset
+
+                # eo_info["eo:bands"] = eo_bands_list
+
+                minx, miny, maxx, maxy = zip(*bboxes)
+                bbox = [min(minx), min(miny), max(maxx), max(maxy)]
+
+                cube_dimensons = {
+                    self.X_DIM: {
+                        "axis": "x",
+                        "type": "spatial",
+                        "extent": [
+                            float(bands_data[b_d].coords[self.X_DIM].min()),
+                            float(bands_data[b_d].coords[self.X_DIM].max()),
+                        ],
+                        "reference_system": int((bands_data[b_d].rio.crs.to_string()).split(":")[1]),
+                    },
+                    self.Y_DIM: {
+                        "axis": "y",
+                        "type": "spatial",
+                        "extent": [
+                            float(bands_data[b_d].coords[self.Y_DIM].min()),
+                            float(bands_data[b_d].coords[self.Y_DIM].max()),
+                        ],
+                        "reference_system": int((self.data.rio.crs.to_string()).split(":")[1]),
+                    },
+                    self.T_DIM: {
+                        "type": "temporal",
+                        "extent": [
+                            str(bands_data[b_d][self.T_DIM].min().values),
+                            str(bands_data[b_d][self.T_DIM].max().values),
+                        ],
+                    },
+                }
+
+                for _o_dim in self.OTHER_DIMS:
+                    values = [x for x in bands_data[b_d][_o_dim].values]
+                    if isinstance(values[0],np.int64) or isinstance(values[0],np.int32):
+                        values = [int(x) for x in values]
+                    else:
+                        values = [str(x) for x in values]
+                    cube_dimensons[_o_dim] = {"type":"other",
+                                              "values": values,
+                                             }
+
+                cube_variables = {}
+                for _b_dim in self.B_DIMS:
+                    for _b in bands_data[b_d][_b_dim].values:
+                        cube_variables[_b] = {
+                                "type": "data",
+                                "dimensions": list(bands_data[b_d].loc[{_b_dim:_b}].dims),
+                            }
+                        if "unit" in self.data_ds[_b].attrs:
+                            cube_variables[_b]["unit"] = self.data_ds[_b].attrs["unit"]
+                extra_fields = {}
+                extra_fields["cube:dimensions"] = cube_dimensons
+                extra_fields["cube:variables"] = cube_variables
+
+                # item
+                item = pystac.Item(
+                    id=item_id,
+                    geometry=bbox_to_geom(bbox),
+                    bbox=bbox,
+                    collection=None,  # self.collection_id, #FIXME: da errore se lo si decommenta
+                    stac_extensions=self.extensions,
+                    datetime=None,
+                    start_datetime=pd.Timestamp(start_datetime),
+                    end_datetime=pd.Timestamp(end_datetime),
+                    properties={**self.properties,**extra_fields},
+                )
+
+                # Calculate the item's spatial extent and add it to the list
+                spatial_extents.append(item.bbox)
+
+                # Calculate the item's temporal extent and add it to the list
+                # item_datetime = item.start_datetime
+                temporal_extents.append(
+                    [pd.Timestamp(start_datetime), pd.Timestamp(end_datetime)]
+                )
+
+                for key, asset in pystac_assets:
+                    item.add_asset(key=key, asset=asset)
+
+                item.validate()
+
+                item.add_link(
+                    pystac.Link(
+                        pystac.RelType.COLLECTION,
+                        f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
+                        media_type=pystac.MediaType.JSON,
+                    )
+                )
+
+                item.add_link(
+                    pystac.Link(
+                        pystac.RelType.PARENT,
+                        f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
+                        media_type=pystac.MediaType.JSON,
+                    )
+                )
+
+                item.add_link(
+                    pystac.Link(
+                        pystac.RelType.SELF,
+                        f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/{item_id}",
+                        media_type=pystac.MediaType.JSON,
+                    )
+                )
+
+                item_dict = item.to_dict()
+
+                # FIXME: persistent pystac bug or logical error (urllib error when adding root link to current item)
+                # now this link is added manually by editing the dict
+                item_dict["links"].append(
+                    {
+                        "rel": "root",
+                        "href": self.get_root_url(
+                            f"{self.fix_path_slash(self.collection_url)}{self.collection_id}"
+                        ),
+                        "type": "application/json",
+                    }
+                )
+
+                # self.stac_collection.add_item(item)
+                # Append the item to the list instead of adding it to the collection
+                # item_dict = item.to_dict()
+                item_dict["collection"] = self.collection_id
+
+                item_oneline = json.dumps(
+                    item_dict, separators=(",", ":"), ensure_ascii=False
+                )
+
+                output_path = Path(self.output_folder)
+                with open(f"{output_path}/inline_items.csv", "a+") as out_csv:
+                    out_csv.write(f"{item_oneline}\n")
+
+                jsons_path = f"{output_path}/items/"
+                Path(jsons_path).mkdir(parents=True, exist_ok=True)
+
+                with open(
+                    f"{self.fix_path_slash(jsons_path)}{item_id}.json", "w+"
+                ) as out_json:
+                    out_json.write(json.dumps(item_dict, indent=4))
+
+        # Calculate overall spatial extent
+        minx, miny, maxx, maxy = zip(*spatial_extents)
+        overall_bbox = [min(minx), min(miny), max(maxx), max(maxy)]
+
+        # Calculate overall temporal extent
+        min_datetime = min(temporal_extents, key=lambda x: x[0])[0]
+        max_datetime = max(temporal_extents, key=lambda x: x[1])[1]
+        overall_temporal_extent = [min_datetime, max_datetime]
+
+        s_ext = pystac.SpatialExtent([overall_bbox])
+        t_ext = pystac.TemporalExtent([overall_temporal_extent])
+
+        extra_fields = {}
+
+        extra_fields["stac_version"] = self.stac_version
+
+        if self.keywords is not None:
+            extra_fields["keywords"] = self.keywords
+
+        if self.providers is not None:
+            extra_fields["providers"] = self.providers
+
+        if self.version is not None:
+            extra_fields["version"] = self.version
+
+        if self.title is not None:
+            extra_fields["title"] = self.title
+
+        if self.sci_citation is not None:
+            extra_fields["sci:citation"] = self.sci_citation
+
+        if self.sci_doi is not None:
+            extra_fields["sci:doi"] = self.sci_doi
+
+        if self.sci_citation is not None or self.sci_doi is not None:
+            self.extensions.append(
+                "https://stac-extensions.github.io/scientific/v1.0.0/schema.json"
+            )
+
+        extra_fields["summaries"] = eo_info       
+        extra_fields["stac_extensions"] = self.extensions
+
+        if self.write_collection_assets:
+            self.stac_collection = pystac.collection.Collection(
+                id=self.collection_id,
+                description=self.description,
+                extent=pystac.Extent(spatial=s_ext, temporal=t_ext),
+                extra_fields=extra_fields,
+                assets=collection_assets,
+            )
+        else:
+            self.stac_collection = pystac.collection.Collection(
+                id=self.collection_id,
+                description=self.description,
+                extent=pystac.Extent(spatial=s_ext, temporal=t_ext),
+                extra_fields=extra_fields,
+            )
+
+        self.stac_collection.add_link(
+            pystac.Link(
+                pystac.RelType.ITEMS,
+                f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items",
+                media_type=pystac.MediaType.JSON,
+            )
+        )
+
+        self.stac_collection.add_link(
+            pystac.Link(
+                pystac.RelType.PARENT,
+                self.get_root_url(
+                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"
+                ),
+                media_type=pystac.MediaType.JSON,
+            )
+        )
+
+        self.stac_collection.add_link(
+            pystac.Link(
+                pystac.RelType.SELF,
+                f"{self.fix_path_slash(self.collection_url)}{self.collection_id}",
+                media_type=pystac.MediaType.JSON,
+            )
+        )
+
+        # self.stac_collection.remove_links(rel=pystac.RelType.ROOT)
+
+        self.stac_collection.add_link(
+            pystac.Link(
+                pystac.RelType.ROOT,
+                self.get_root_url(
+                    f"{self.fix_path_slash(self.collection_url)}{self.collection_id}/items"
+                ),
+                media_type=pystac.MediaType.JSON,
+            )
+        )
+
+        if self.license is not None:
+            self.stac_collection.license = self.license
+
+        # Create a single JSON file with all the items
+        stac_collection_dict = self.stac_collection.to_dict()
+
+        # in order to solve the double "root" link bug/issue
+        links_dict = stac_collection_dict["links"]
+
+        ctr_roots = 0
+        self_exists = False
+        self_idx = 0
+
+        for idx, link in enumerate(links_dict):
+            if link["rel"] == "root":
+                ctr_roots = ctr_roots + 1
+            if link["rel"] == "self":
+                self_exists = True
+                self_idx = idx
+
+        if ctr_roots == 2 and self_exists:
+            for idx, link in enumerate(links_dict):
+                if (
+                    link["rel"] == "root"
+                    and link["href"] == links_dict[self_idx]["href"]
+                    and link["type"] == links_dict[self_idx]["type"]
+                ):
+                    del links_dict[idx]
+                    break
+
+        if self.links is not None:
+            stac_collection_dict["links"] = stac_collection_dict["links"] + self.links
+
+        json_str = json.dumps(stac_collection_dict, indent=4)
+
+        # printing metadata.json test output file
+        output_path = Path(self.output_folder) / Path(self.output_file)
+        with open(output_path, "w+") as metadata:
+            metadata.write(json_str)
+
+        # if self.s3_upload:
+        #     # Uploading metadata JSON file to s3
+        #     _log.debug(
+        #         f'Uploading metatada JSON "{output_path}" to {self.fix_path_slash(self.bucket_file_prefix)}{os.path.basename(output_path)}'
+        #     )
+        #     self.upload_s3(output_path)
+
     def generate_cog_stac(self):
         if isinstance(self.data, xr.Dataset):
             # store datasets in  a placeholder
@@ -719,7 +1146,6 @@ class Raster2STAC:
                 "Please provide a path to a valid file or an xArray DataArray or Dataset object!"
             )
 
-        self.output_format = "COG"
         self.media_type = pystac.MediaType.COG
         self.X_DIM = self.data.openeo.x_dim
         self.Y_DIM = self.data.openeo.y_dim
@@ -932,8 +1358,6 @@ class Raster2STAC:
             # item_dict = item.to_dict()
             item_dict["collection"] = self.collection_id
 
-            # if self.output_format == "json_full":
-            # elif self.output_format == "csv":
             item_oneline = json.dumps(
                 item_dict, separators=(",", ":"), ensure_ascii=False
             )
@@ -990,9 +1414,6 @@ class Raster2STAC:
             )
 
         extra_fields["summaries"] = eo_info
-        self.extensions.append(
-            "https://stac-extensions.github.io/datacube/v2.2.0/schema.json"
-        )
         extra_fields["stac_extensions"] = self.extensions
 
         cube_dimensons = {
