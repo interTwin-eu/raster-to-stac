@@ -22,7 +22,7 @@ packages = ["raster2stac"]
 
 [project]
 name = "raster2stac"
-version = "SEMANTIC_VERSION"
+version = "0.0.5"
 dependencies = [
     "kerchunk",
     "openeo-pg-parser-networkx==2024.4.0",
