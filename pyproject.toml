@@ -25,7 +25,7 @@ name = "raster2stac"
 version = "0.0.5"
 dependencies = [
     "kerchunk",
-    "openeo-pg-parser-networkx==2024.4.0",
+    "openeo-pg-parser-networkx>=2024.5.0",
     "openeo-processes-dask[implementations]",
     "rio-stac",
     "boto3",
